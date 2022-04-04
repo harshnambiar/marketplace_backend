@@ -13,6 +13,87 @@ actor class DRC721(_name : Text, _symbol : Text) {
     //Using DIP721 standard, adapted from https://github.com/SuddenlyHazel/DIP721/blob/main/src/DIP721/DIP721.mo
     private stable var tokenPk : Nat = 0;
 
+    public type Metadata = {
+        name: Text;
+        logo: Text;
+        symbol: Text;
+        custodians: [Principal];
+        created_at: Nat64;
+        upgraded_at: Nat64;
+    };
+
+    public type Stats = {
+        total_transactions: Nat;
+        total_supply: Nat;
+        cycles: Nat;
+        total_unique_holders: Nat;
+    };
+
+    public type GenericValue = {
+        #boolContent: Bool;
+        #textContent: Text;
+        #blobContent: [Nat8];
+        #principal: Principal;
+        #nat8Content: Nat8;
+        #nat16Content: Nat16;
+        #nat32Content: Nat32;
+        #nat64Content: Nat64;
+        #natContent: Nat;
+        #int8Content: Int8;
+        #int16Content: Int16;
+        #int32Content: Int32;
+        #int64Content: Int64;
+        #intContent: Int;
+        #floatContent: Float;
+        #nestedContent: [(Text, GenericValue)];
+    };
+    
+    public type TokenMetadata = {
+        token_identifier: Nat;
+        owner: ?Principal;
+        operator_: ?Principal;
+        is_burned: Bool;
+        properties: [(Text, GenericValue)];
+        minted_at: Nat64;
+        minted_by: Principal;
+        transferred_at: ?Nat64;
+        transferred_by: ?Principal;
+        approved_at: ?Nat64;
+        approved_by: ?Principal;
+        burned_at: ?Nat64;
+        burned_by: ?Principal;
+    };
+
+    public type TxEvent = {
+        time: Nat64;
+        caller: Principal;
+        operation: Text;
+        details: [(Text, GenericValue)];
+    };
+
+    
+    public type SupportedInterface = {
+        #approval;
+        #mint;
+        #burn;
+        #transactionHistory;
+    };
+    
+    public type NftError = {
+        #unauthorizedOwner;
+        #unauthorizedOperator;
+        #ownerNotFound;
+        #operatorNotFound;
+        #tokenNotFound;
+        #existedNFT;
+        #selfApprove;
+        #selfTransfer;
+        #txNotFound;
+        #other;
+    };
+
+    
+
     private stable var tokenURIEntries : [(T.TokenId, Text)] = [];
     private stable var ownersEntries : [(T.TokenId, Principal)] = [];
     private stable var balancesEntries : [(Principal, Nat)] = [];
@@ -178,13 +259,30 @@ actor class DRC721(_name : Text, _symbol : Text) {
 
     private func _isApprovedOrOwner(spender : Principal, tokenId : Nat) : Bool {
         assert _exists(tokenId);
-        let owner = Option.unwrap(_ownerOf(tokenId));
+        var owner = Principal.fromText("");
+        switch (_ownerOf(tokenId)){
+            case null {
+                owner := Principal.fromText("");
+            };
+            case (?principal){
+                owner := principal;
+            };
+        };
         return spender == owner or _hasApprovedAndSame(tokenId, spender) or _isApprovedForAll(owner, spender);
     };
 
     private func _transfer(from : Principal, to : Principal, tokenId : Nat) : () {
         assert _exists(tokenId);
-        assert Option.unwrap(_ownerOf(tokenId)) == from;
+        var owner = Principal.fromText("");
+        switch (_ownerOf(tokenId)){
+            case null {
+                owner := Principal.fromText("");
+            };
+            case (?principal){
+                owner := principal;
+            };
+        };
+        assert owner == from;
 
         // Bug in HashMap https://github.com/dfinity/motoko-base/pull/253/files
         // this will throw unless you patch your file
@@ -226,7 +324,16 @@ actor class DRC721(_name : Text, _symbol : Text) {
     };
 
     private func _burn(tokenId : Nat) {
-        let owner = Option.unwrap(_ownerOf(tokenId));
+        var owner = Principal.fromText("");
+        switch (_ownerOf(tokenId)){
+            case null {
+                owner := Principal.fromText("");
+            };
+            case (?principal){
+                owner := principal;
+            };
+        };
+        assert Principal.toText(owner) != "";
 
         _removeApprove(tokenId);
         _decrementBalance(owner);

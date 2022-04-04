@@ -1,10 +1,10 @@
-# Motoko bootcamp : NFT minter. 
+# Prelude to the ICPverse NFT Token Standard 
 
 Basic NFT minter inspired by the DIP 721 standard (implementation not guarantee, consider this example as an educational ressource. For a production project with DIP721, please take a look at the official DIP721 repo).
 
 ## Running the project locally
 
-If you want to test your project locally, you can use the following commands:
+To run the project locally, you can use the following commands:
 
 ```bash
 # Install dependencies
