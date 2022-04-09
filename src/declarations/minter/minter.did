@@ -1,12 +1,53 @@
+type TokenMetadata = 
+ record {
+   approved_at: opt nat64;
+   approved_by: opt principal;
+   burned_at: opt nat64;
+   burned_by: opt principal;
+   is_burned: bool;
+   minted_at: nat64;
+   minted_by: principal;
+   operator: opt principal;
+   owner: opt principal;
+   properties: vec record {
+                     text;
+                     GenericValue;
+                   };
+   token_identifier: nat;
+   transferred_at: opt nat64;
+   transferred_by: opt principal;
+ };
 type TokenId = nat;
+type GenericValue = 
+ variant {
+   blobContent: vec nat8;
+   boolContent: bool;
+   floatContent: float64;
+   int16Content: int16;
+   int32Content: int32;
+   int64Content: int64;
+   int8Content: int8;
+   intContent: int;
+   nat16Content: nat16;
+   nat32Content: nat32;
+   nat64Content: nat64;
+   nat8Content: nat8;
+   natContent: nat;
+   nestedContent: vec record {
+                        text;
+                        GenericValue;
+                      };
+   "principal": principal;
+   textContent: text;
+ };
 type DRC721 = 
  service {
    approve: (principal, TokenId) -> ();
    balanceOf: (principal) -> (opt nat);
    getApproved: (nat) -> (principal);
    isApprovedForAll: (principal, principal) -> (bool);
-   mint: (text) -> (nat);
-   mint_principal: (text, principal) -> (nat);
+   mint: (text, TokenMetadata) -> (nat);
+   mint_principal: (text, TokenMetadata, principal) -> (nat);
    name: () -> (text) query;
    ownerOf: (TokenId) -> (opt principal);
    setApprovalForAll: (principal, bool) -> () oneway;

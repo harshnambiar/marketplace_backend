@@ -2,6 +2,7 @@ import Error "mo:base/Error";
 import Hash "mo:base/Hash";
 import HashMap "mo:base/HashMap";
 import Nat "mo:base/Nat";
+import Text "mo:base/Text";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Array "mo:base/Array";
@@ -95,12 +96,14 @@ actor class DRC721(_name : Text, _symbol : Text) {
     
 
     private stable var tokenURIEntries : [(T.TokenId, Text)] = [];
+    private stable var tokenMetadataEntries : [(Text, TokenMetadata)] = [];
     private stable var ownersEntries : [(T.TokenId, Principal)] = [];
     private stable var balancesEntries : [(Principal, Nat)] = [];
     private stable var tokenApprovalsEntries : [(T.TokenId, Principal)] = [];
     private stable var operatorApprovalsEntries : [(Principal, [Principal])] = [];  
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
     private let owners : HashMap.HashMap<T.TokenId, Principal> = HashMap.fromIter<T.TokenId, Principal>(ownersEntries.vals(), 10, Nat.equal, Hash.hash);
     private let balances : HashMap.HashMap<Principal, Nat> = HashMap.fromIter<Principal, Nat>(balancesEntries.vals(), 10, Principal.equal, Principal.hash);
     private let tokenApprovals : HashMap.HashMap<T.TokenId, Principal> = HashMap.fromIter<T.TokenId, Principal>(tokenApprovalsEntries.vals(), 10, Nat.equal, Hash.hash);
@@ -188,16 +191,16 @@ actor class DRC721(_name : Text, _symbol : Text) {
     };
 
     // Mint without authentication
-    public func mint_principal(uri : Text, principal : Principal) : async Nat {
+    public func mint_principal(uri : Text, meta : TokenMetadata, principal : Principal) : async Nat {
         tokenPk += 1;
-        _mint(principal, tokenPk, uri);
+        _mint(principal, tokenPk, uri, meta);
         return tokenPk;
     };
 
     // Mint requires authentication in the frontend as we are using caller.
-     public shared ({caller}) func mint(uri : Text) : async Nat {
+     public shared ({caller}) func mint(uri : Text, meta : TokenMetadata) : async Nat {
         tokenPk += 1;
-        _mint(caller, tokenPk, uri);
+        _mint(caller, tokenPk, uri, meta);
         return tokenPk;
     };
 
@@ -210,6 +213,10 @@ actor class DRC721(_name : Text, _symbol : Text) {
 
     private func _tokenURI(tokenId : T.TokenId) : ?Text {
         return tokenURIs.get(tokenId);
+    };
+
+    private func _tokenMetadat(uri: Text) : ?TokenMetadata {
+        return tokenMetadataHash.get(uri);
     };
 
     private func _isApprovedForAll(owner : Principal, opperator : Principal) : Bool {
@@ -315,12 +322,13 @@ actor class DRC721(_name : Text, _symbol : Text) {
         }
     };
 
-    private func _mint(to : Principal, tokenId : Nat, uri : Text) : () {
+    private func _mint(to : Principal, tokenId : Nat, uri : Text, meta : TokenMetadata) : () {
         assert not _exists(tokenId);
 
         _incrementBalance(to);
         owners.put(tokenId, to);
-        tokenURIs.put(tokenId,uri)
+        tokenURIs.put(tokenId,uri);
+        tokenMetadataHash.put(uri,meta);
     };
 
     private func _burn(tokenId : Nat) {
@@ -343,6 +351,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
 
     system func preupgrade() {
         tokenURIEntries := Iter.toArray(tokenURIs.entries());
+        tokenMetadataEntries := Iter.toArray(tokenMetadataHash.entries());
         ownersEntries := Iter.toArray(owners.entries());
         balancesEntries := Iter.toArray(balances.entries());
         tokenApprovalsEntries := Iter.toArray(tokenApprovals.entries());
@@ -352,6 +361,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
 
     system func postupgrade() {
         tokenURIEntries := [];
+        tokenMetadataEntries := [];
         ownersEntries := [];
         balancesEntries := [];
         tokenApprovalsEntries := [];
