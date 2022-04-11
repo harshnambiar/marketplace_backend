@@ -1,4 +1,13 @@
 import type { Principal } from '@dfinity/principal';
+export interface CollectionMetadata {
+  'logo' : string,
+  'name' : string,
+  'created_at' : bigint,
+  'upgraded_at' : bigint,
+  'custodians' : Array<Principal>,
+  'max_items' : bigint,
+  'symbol' : string,
+}
 export interface DRC721 {
   'approve' : (arg_0: Principal, arg_1: TokenId) => Promise<undefined>,
   'balanceOf' : (arg_0: Principal) => Promise<[] | [bigint]>,
@@ -43,6 +52,7 @@ export type TokenId = bigint;
 export interface TokenMetadata {
   'transferred_at' : [] | [bigint],
   'transferred_by' : [] | [Principal],
+  'collection' : [] | [CollectionMetadata],
   'owner' : [] | [Principal],
   'operator' : [] | [Principal],
   'approved_at' : [] | [bigint],

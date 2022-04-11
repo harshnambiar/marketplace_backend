@@ -1,6 +1,15 @@
 export const idlFactory = ({ IDL }) => {
   const GenericValue = IDL.Rec();
   const TokenId = IDL.Nat;
+  const CollectionMetadata = IDL.Record({
+    'logo' : IDL.Text,
+    'name' : IDL.Text,
+    'created_at' : IDL.Nat64,
+    'upgraded_at' : IDL.Nat64,
+    'custodians' : IDL.Vec(IDL.Principal),
+    'max_items' : IDL.Nat64,
+    'symbol' : IDL.Text,
+  });
   GenericValue.fill(
     IDL.Variant({
       'principal' : IDL.Principal,
@@ -24,6 +33,7 @@ export const idlFactory = ({ IDL }) => {
   const TokenMetadata = IDL.Record({
     'transferred_at' : IDL.Opt(IDL.Nat64),
     'transferred_by' : IDL.Opt(IDL.Principal),
+    'collection' : IDL.Opt(CollectionMetadata),
     'owner' : IDL.Opt(IDL.Principal),
     'operator' : IDL.Opt(IDL.Principal),
     'approved_at' : IDL.Opt(IDL.Nat64),

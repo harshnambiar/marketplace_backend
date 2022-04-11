@@ -14,13 +14,14 @@ actor class DRC721(_name : Text, _symbol : Text) {
     //Using DIP721 standard, adapted from https://github.com/SuddenlyHazel/DIP721/blob/main/src/DIP721/DIP721.mo
     private stable var tokenPk : Nat = 0;
 
-    public type Metadata = {
+    public type CollectionMetadata = {
         name: Text;
         logo: Text;
         symbol: Text;
         custodians: [Principal];
         created_at: Nat64;
         upgraded_at: Nat64;
+        max_items: Nat64;
     };
 
     public type Stats = {
@@ -63,6 +64,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
         approved_by: ?Principal;
         burned_at: ?Nat64;
         burned_by: ?Principal;
+        collection: ?CollectionMetadata;
     };
 
     public type TxEvent = {
@@ -215,7 +217,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
         return tokenURIs.get(tokenId);
     };
 
-    private func _tokenMetadat(uri: Text) : ?TokenMetadata {
+    private func _tokenMetadata(uri: Text) : ?TokenMetadata {
         return tokenMetadataHash.get(uri);
     };
 

@@ -4,6 +4,7 @@ type TokenMetadata =
    approved_by: opt principal;
    burned_at: opt nat64;
    burned_by: opt principal;
+   collection: opt CollectionMetadata;
    is_burned: bool;
    minted_at: nat64;
    minted_by: principal;
@@ -54,5 +55,15 @@ type DRC721 =
    symbol: () -> (text) query;
    tokenURI: (TokenId) -> (opt text) query;
    transferFrom: (principal, principal, nat) -> () oneway;
+ };
+type CollectionMetadata = 
+ record {
+   created_at: nat64;
+   custodians: vec principal;
+   logo: text;
+   max_items: nat64;
+   name: text;
+   symbol: text;
+   upgraded_at: nat64;
  };
 service : (text, text) -> DRC721
