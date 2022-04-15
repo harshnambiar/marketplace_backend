@@ -44,6 +44,7 @@ type GenericValue =
 type DRC721 = 
  service {
    approve: (principal, TokenId) -> ();
+   auction: (TokenId, nat) -> (bool);
    balanceOf: (principal) -> (opt nat);
    getApproved: (nat) -> (principal);
    isApprovedForAll: (principal, principal) -> (bool);

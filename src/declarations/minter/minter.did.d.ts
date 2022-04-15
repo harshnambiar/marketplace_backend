@@ -10,6 +10,7 @@ export interface CollectionMetadata {
 }
 export interface DRC721 {
   'approve' : (arg_0: Principal, arg_1: TokenId) => Promise<undefined>,
+  'auction' : (arg_0: TokenId, arg_1: bigint) => Promise<boolean>,
   'balanceOf' : (arg_0: Principal) => Promise<[] | [bigint]>,
   'getApproved' : (arg_0: bigint) => Promise<Principal>,
   'isApprovedForAll' : (arg_0: Principal, arg_1: Principal) => Promise<boolean>,

@@ -48,6 +48,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const DRC721 = IDL.Service({
     'approve' : IDL.Func([IDL.Principal, TokenId], [], []),
+    'auction' : IDL.Func([TokenId, IDL.Nat], [IDL.Bool], []),
     'balanceOf' : IDL.Func([IDL.Principal], [IDL.Opt(IDL.Nat)], []),
     'getApproved' : IDL.Func([IDL.Nat], [IDL.Principal], []),
     'isApprovedForAll' : IDL.Func(

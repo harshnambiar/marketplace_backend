@@ -102,7 +102,9 @@ actor class DRC721(_name : Text, _symbol : Text) {
     private stable var ownersEntries : [(T.TokenId, Principal)] = [];
     private stable var balancesEntries : [(Principal, Nat)] = [];
     private stable var tokenApprovalsEntries : [(T.TokenId, Principal)] = [];
-    private stable var operatorApprovalsEntries : [(Principal, [Principal])] = [];  
+    private stable var operatorApprovalsEntries : [(Principal, [Principal])] = [];
+    private stable var activeAuctionEntries : [(T.TokenId, Nat)] = [];
+    private stable var auctionApplicationEntries : [(Text, Nat)] = [];  
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
@@ -110,7 +112,10 @@ actor class DRC721(_name : Text, _symbol : Text) {
     private let balances : HashMap.HashMap<Principal, Nat> = HashMap.fromIter<Principal, Nat>(balancesEntries.vals(), 10, Principal.equal, Principal.hash);
     private let tokenApprovals : HashMap.HashMap<T.TokenId, Principal> = HashMap.fromIter<T.TokenId, Principal>(tokenApprovalsEntries.vals(), 10, Nat.equal, Hash.hash);
     private let operatorApprovals : HashMap.HashMap<Principal, [Principal]> = HashMap.fromIter<Principal, [Principal]>(operatorApprovalsEntries.vals(), 10, Principal.equal, Principal.hash);
-
+    private let activeAuctions : HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(activeAuctionEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let auctionApplications : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(auctionApplicationEntries.vals(), 10, Text.equal, Text.hash);
+    
+    
     public shared func balanceOf(p : Principal) : async ?Nat {
         return balances.get(p);
     };
@@ -206,6 +211,24 @@ actor class DRC721(_name : Text, _symbol : Text) {
         return tokenPk;
     };
 
+    //To hold an auction for owned NFT
+    public shared ({caller}) func auction(t : T.TokenId, minSale : Nat) : async Bool {
+        let tokenOwner = owners.get(t);
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case (?principal) {
+                if (principal != caller){
+                    return false;
+                } 
+                else {
+                    activeAuctions.put(t,minSale);
+                    return true;
+                };
+            };
+        };
+    };
 
     // Internal
 
@@ -358,6 +381,8 @@ actor class DRC721(_name : Text, _symbol : Text) {
         balancesEntries := Iter.toArray(balances.entries());
         tokenApprovalsEntries := Iter.toArray(tokenApprovals.entries());
         operatorApprovalsEntries := Iter.toArray(operatorApprovals.entries());
+        activeAuctionEntries := Iter.toArray(activeAuctions.entries());
+        auctionApplicationEntries := Iter.toArray(auctionApplications.entries());
         
     };
 
@@ -368,5 +393,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
         balancesEntries := [];
         tokenApprovalsEntries := [];
         operatorApprovalsEntries := [];
+        auctionApplicationEntries := [];
+        activeAuctionEntries := [];
     };
 };
