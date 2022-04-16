@@ -116,6 +116,58 @@ actor class DRC721(_name : Text, _symbol : Text) {
     private let auctionApplications : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(auctionApplicationEntries.vals(), 10, Text.equal, Text.hash);
     
     
+    func textToNat(t : Text) : ?Nat{
+        let s = t.size();
+        if (s == 0){
+            return null;
+        };
+        var num : Nat = 0;
+        var i = 0;
+        for (c in t.chars()){
+            if (c != '0' and c != '1' and c != '2' and c != '3' and c != '4' and c != '5' and c != '6' and c != '7' and c != '8' and c != '9'){
+                return null;                
+            }
+            else {
+                var dig : Nat = 0;
+                switch (c) {
+                    case '0' {
+                        dig := 0;
+                    };
+                    case '1' {
+                        dig := 1;
+                    };
+                    case '2' {
+                        dig := 2;
+                    };
+                    case '3' {
+                        dig := 3;
+                    };
+                    case '4' {
+                        dig := 4;
+                    };
+                    case '5' {
+                        dig := 5;
+                    };
+                    case '6' {
+                        dig := 6;
+                    };
+                    case '7' {
+                        dig := 7;
+                    };
+                    case '8' {
+                        dig := 8;
+                    };
+                    case default {
+                        dig := 9;
+                    };
+                };
+                num := num + dig * (10**(s - i - 1));
+            };
+            i += 1;
+        };
+        return (?num);
+    };
+    
     public shared func balanceOf(p : Principal) : async ?Nat {
         return balances.get(p);
     };
@@ -212,7 +264,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
     };
 
     //To hold an auction for owned NFT
-    public shared ({caller}) func auction(t : T.TokenId, minSale : Nat) : async Bool {
+    public shared ({caller}) func auctionStart(t : T.TokenId, minSale : Nat) : async Bool {
         let tokenOwner = owners.get(t);
         switch (tokenOwner) {
             case null {
@@ -224,6 +276,79 @@ actor class DRC721(_name : Text, _symbol : Text) {
                 } 
                 else {
                     activeAuctions.put(t,minSale);
+                    return true;
+                };
+            };
+        };
+    };
+
+    //To participate in an auction for an NFT
+    public shared({caller}) func auctionBid(t: T.TokenId, bid: Nat) : async Bool {
+        let tokenOwner = owners.get(t);
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case default {
+                var i = 0;
+            };
+        };
+        let minBid = activeAuctions.get(t);
+        switch (minBid) {
+            case null {
+                return false;
+            };
+            case (?nat) {
+                if (nat > bid) {
+                    return false;
+                }
+                else {
+                    let bid_identifier : Text = Nat.toText(t) # "<<<>>>" # Principal.toText(caller);
+                    auctionApplications.put(bid_identifier,bid);
+                    return true;
+                }; 
+            };
+        };
+    };
+
+    //To end an auction for owned NFT
+    public shared({caller}) func auctionEnd(t : T.TokenId) : async Bool {
+        let tokenOwner = owners.get(t);
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case (?principal) {
+                if (principal != caller){
+                    return false;
+                } 
+                else {
+                    var winningBidder : Principal = Principal.fromText("");
+                    var winningBid : Nat = 0;
+                    for ((key,item) in auctionApplications.entries()){
+                        let iter = Text.split(key,#text("<<<>>>"));
+                        let iterArray = Iter.toArray<Text>(iter);
+                        let tID  = textToNat(iterArray[0]);
+                        var tid : Nat = 0;
+                        switch (tID){
+                            case null {
+                                tid := 0;
+                            };
+                            case (?nat) {
+                                tid := nat;
+                            };
+                        };
+                        if (tid == t){
+                            let bidder : Principal = Principal.fromText(iterArray[1]);
+                            let bid = item;
+                            if (bid > winningBid){
+                                winningBid := bid;
+                                winningBidder := bidder;
+                            };
+                        };
+                        auctionApplications.delete(key);
+                    };
+                    activeAuctions.delete(t);
                     return true;
                 };
             };
