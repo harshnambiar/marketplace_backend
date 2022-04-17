@@ -4,6 +4,7 @@ export const idlFactory = ({ IDL }) => {
   const CollectionMetadata = IDL.Record({
     'logo' : IDL.Text,
     'name' : IDL.Text,
+    'tags' : IDL.Vec(IDL.Text),
     'created_at' : IDL.Nat64,
     'upgraded_at' : IDL.Nat64,
     'custodians' : IDL.Vec(IDL.Principal),
@@ -68,6 +69,7 @@ export const idlFactory = ({ IDL }) => {
     'ownerOf' : IDL.Func([TokenId], [IDL.Opt(IDL.Principal)], []),
     'setApprovalForAll' : IDL.Func([IDL.Principal, IDL.Bool], [], ['oneway']),
     'symbol' : IDL.Func([], [IDL.Text], ['query']),
+    'tags' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
     'tokenURI' : IDL.Func([TokenId], [IDL.Opt(IDL.Text)], ['query']),
     'transferFrom' : IDL.Func(
         [IDL.Principal, IDL.Principal, IDL.Nat],
@@ -77,4 +79,6 @@ export const idlFactory = ({ IDL }) => {
   });
   return DRC721;
 };
-export const init = ({ IDL }) => { return [IDL.Text, IDL.Text]; };
+export const init = ({ IDL }) => {
+  return [IDL.Text, IDL.Text, IDL.Vec(IDL.Text)];
+};

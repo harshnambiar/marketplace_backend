@@ -9,7 +9,7 @@ import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import T "dip721_types";
 
-actor class DRC721(_name : Text, _symbol : Text) {
+actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     //Using DIP721 standard, adapted from https://github.com/SuddenlyHazel/DIP721/blob/main/src/DIP721/DIP721.mo
     private stable var tokenPk : Nat = 0;
@@ -18,6 +18,7 @@ actor class DRC721(_name : Text, _symbol : Text) {
         name: Text;
         logo: Text;
         symbol: Text;
+        tags: [Text];
         custodians: [Principal];
         created_at: Nat64;
         upgraded_at: Nat64;
@@ -188,6 +189,10 @@ actor class DRC721(_name : Text, _symbol : Text) {
         return _symbol;
     };
 
+    public shared query func tags() : async [Text] {
+        return _tags;
+    };
+
     public shared func isApprovedForAll(owner : Principal, opperator : Principal) : async Bool {
         return _isApprovedForAll(owner, opperator);
     };
@@ -349,7 +354,13 @@ actor class DRC721(_name : Text, _symbol : Text) {
                         auctionApplications.delete(key);
                     };
                     activeAuctions.delete(t);
-                    return true;
+                    if (winningBid != 0){
+                        _transfer(caller, winningBidder, t);
+                        return true;
+                    }
+                    else {
+                        return false;
+                    };
                 };
             };
         };

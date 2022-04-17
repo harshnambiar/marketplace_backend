@@ -56,6 +56,7 @@ type DRC721 =
    ownerOf: (TokenId) -> (opt principal);
    setApprovalForAll: (principal, bool) -> () oneway;
    symbol: () -> (text) query;
+   tags: () -> (vec text) query;
    tokenURI: (TokenId) -> (opt text) query;
    transferFrom: (principal, principal, nat) -> () oneway;
  };
@@ -67,6 +68,7 @@ type CollectionMetadata =
    max_items: nat64;
    name: text;
    symbol: text;
+   tags: vec text;
    upgraded_at: nat64;
  };
-service : (text, text) -> DRC721
+service : (text, text, vec text) -> DRC721

@@ -2,6 +2,7 @@ import type { Principal } from '@dfinity/principal';
 export interface CollectionMetadata {
   'logo' : string,
   'name' : string,
+  'tags' : Array<string>,
   'created_at' : bigint,
   'upgraded_at' : bigint,
   'custodians' : Array<Principal>,
@@ -28,6 +29,7 @@ export interface DRC721 {
       undefined
     >,
   'symbol' : () => Promise<string>,
+  'tags' : () => Promise<Array<string>>,
   'tokenURI' : (arg_0: TokenId) => Promise<[] | [string]>,
   'transferFrom' : (
       arg_0: Principal,
