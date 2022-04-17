@@ -32,7 +32,7 @@ export const idlFactory = ({ IDL }) => {
     })
   );
   const TokenMetadata = IDL.Record({
-    'transferred_at' : IDL.Opt(IDL.Nat64),
+    'transferred_at' : IDL.Opt(IDL.Int),
     'transferred_by' : IDL.Opt(IDL.Principal),
     'collection' : IDL.Opt(CollectionMetadata),
     'owner' : IDL.Opt(IDL.Principal),
@@ -44,7 +44,7 @@ export const idlFactory = ({ IDL }) => {
     'token_identifier' : IDL.Nat,
     'burned_at' : IDL.Opt(IDL.Nat64),
     'burned_by' : IDL.Opt(IDL.Principal),
-    'minted_at' : IDL.Nat64,
+    'minted_at' : IDL.Int,
     'minted_by' : IDL.Principal,
   });
   const DRC721 = IDL.Service({
@@ -60,6 +60,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'mint' : IDL.Func([IDL.Text, TokenMetadata], [IDL.Nat], []),
+    'mintFromParameters' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Nat], []),
     'mint_principal' : IDL.Func(
         [IDL.Text, TokenMetadata, IDL.Principal],
         [IDL.Nat],

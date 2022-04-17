@@ -18,6 +18,7 @@ export interface DRC721 {
   'getApproved' : (arg_0: bigint) => Promise<Principal>,
   'isApprovedForAll' : (arg_0: Principal, arg_1: Principal) => Promise<boolean>,
   'mint' : (arg_0: string, arg_1: TokenMetadata) => Promise<bigint>,
+  'mintFromParameters' : (arg_0: string, arg_1: bigint) => Promise<bigint>,
   'mint_principal' : (
       arg_0: string,
       arg_1: TokenMetadata,

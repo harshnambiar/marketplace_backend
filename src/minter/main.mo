@@ -8,6 +8,8 @@ import Principal "mo:base/Principal";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import T "dip721_types";
+import Debug "mo:base/Debug";
+import Time "mo:base/Time";
 
 actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
@@ -57,15 +59,36 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         operator_: ?Principal;
         is_burned: Bool;
         properties: [(Text, GenericValue)];
-        minted_at: Nat64;
+        minted_at: Int;
         minted_by: Principal;
-        transferred_at: ?Nat64;
+        transferred_at: ?Int;
         transferred_by: ?Principal;
         approved_at: ?Nat64;
         approved_by: ?Principal;
         burned_at: ?Nat64;
         burned_by: ?Principal;
         collection: ?CollectionMetadata;
+    };
+
+    func toTokenMetadata(tid: Nat, _owner: Principal) : TokenMetadata{
+        var gv: GenericValue =     #textContent "Testing Session";
+        var output : TokenMetadata = {
+            token_identifier = tid;
+            owner = ?(_owner);
+            operator_ = null;
+            is_burned = false;
+            properties = [("Purpose",gv)];
+            minted_at = Time.now();
+            minted_by = _owner;
+            transferred_at = null;
+            transferred_by = null;
+            approved_at = null;
+            approved_by = null;
+            burned_at = null;
+            burned_by = null;
+            collection = null;
+        };
+        return output;
     };
 
     public type TxEvent = {
@@ -249,8 +272,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     public shared(msg) func transferFrom(from : Principal, to : Principal, tokenId : Nat) : () {
+        Debug.print(debug_show 1111);
         assert _isApprovedOrOwner(msg.caller, tokenId);
-
+        Debug.print(debug_show "hi");
         _transfer(from, to, tokenId);
     };
 
@@ -264,6 +288,14 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     // Mint requires authentication in the frontend as we are using caller.
      public shared ({caller}) func mint(uri : Text, meta : TokenMetadata) : async Nat {
         tokenPk += 1;
+        _mint(caller, tokenPk, uri, meta);
+        return tokenPk;
+    };
+
+    //Mint requires authentication in the frontend, but metadata is self created at runtime.
+    public shared ({caller}) func mintFromParameters(uri: Text, tid: Nat) : async Nat{
+        tokenPk += 1;
+        let meta: TokenMetadata = toTokenMetadata(tid, caller);
         _mint(caller, tokenPk, uri, meta);
         return tokenPk;
     };
@@ -427,24 +459,28 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     private func _isApprovedOrOwner(spender : Principal, tokenId : Nat) : Bool {
         assert _exists(tokenId);
-        var owner = Principal.fromText("");
-        switch (_ownerOf(tokenId)){
+        let owner_ = _ownerOf(tokenId);
+        var owner : Principal = Principal.fromText("2vxsx-fae");
+        switch (owner_){
             case null {
-                owner := Principal.fromText("");
+                owner := Principal.fromText("2vxsx-fae");
+                
             };
             case (?principal){
                 owner := principal;
             };
+            
         };
+        
         return spender == owner or _hasApprovedAndSame(tokenId, spender) or _isApprovedForAll(owner, spender);
     };
 
     private func _transfer(from : Principal, to : Principal, tokenId : Nat) : () {
         assert _exists(tokenId);
-        var owner = Principal.fromText("");
+        var owner = Principal.fromText("2vxsx-fae");
         switch (_ownerOf(tokenId)){
             case null {
-                owner := Principal.fromText("");
+                owner := Principal.fromText("2vxsx-fae");
             };
             case (?principal){
                 owner := principal;
@@ -493,16 +529,16 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     private func _burn(tokenId : Nat) {
-        var owner = Principal.fromText("");
+        var owner = Principal.fromText("2vxsx-fae");
         switch (_ownerOf(tokenId)){
             case null {
-                owner := Principal.fromText("");
+                owner := Principal.fromText("2vxsx-fae");
             };
             case (?principal){
                 owner := principal;
             };
         };
-        assert Principal.toText(owner) != "";
+        assert Principal.toText(owner) != "2vxsx-fae";
 
         _removeApprove(tokenId);
         _decrementBalance(owner);

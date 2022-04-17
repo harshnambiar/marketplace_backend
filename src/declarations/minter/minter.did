@@ -6,7 +6,7 @@ type TokenMetadata =
    burned_by: opt principal;
    collection: opt CollectionMetadata;
    is_burned: bool;
-   minted_at: nat64;
+   minted_at: int;
    minted_by: principal;
    operator: opt principal;
    owner: opt principal;
@@ -15,7 +15,7 @@ type TokenMetadata =
                      GenericValue;
                    };
    token_identifier: nat;
-   transferred_at: opt nat64;
+   transferred_at: opt int;
    transferred_by: opt principal;
  };
 type TokenId = nat;
@@ -51,6 +51,7 @@ type DRC721 =
    getApproved: (nat) -> (principal);
    isApprovedForAll: (principal, principal) -> (bool);
    mint: (text, TokenMetadata) -> (nat);
+   mintFromParameters: (text, nat) -> (nat);
    mint_principal: (text, TokenMetadata, principal) -> (nat);
    name: () -> (text) query;
    ownerOf: (TokenId) -> (opt principal);
