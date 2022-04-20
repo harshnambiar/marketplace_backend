@@ -60,6 +60,7 @@ type DRC721 =
    tags: () -> (vec text) query;
    tokenURI: (TokenId) -> (opt text) query;
    transferFrom: (principal, principal, nat) -> () oneway;
+   updateDNFT: (TokenId, text, TokenMetadata) -> (bool);
  };
 type CollectionMetadata = 
  record {

@@ -77,6 +77,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         ['oneway'],
       ),
+    'updateDNFT' : IDL.Func([TokenId, IDL.Text, TokenMetadata], [IDL.Bool], []),
   });
   return DRC721;
 };

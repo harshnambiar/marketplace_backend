@@ -398,6 +398,27 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         };
     };
 
+    //Edit a dynamic NFT
+    public shared ({caller}) func updateDNFT(tokenId: T.TokenId, uri: Text, meta: TokenMetadata): async Bool{
+        let owner = owners.get(tokenId);
+        switch (owner){
+            case null {
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }
+                else {
+                    let newUri = tokenURIs.replace(tokenId, uri);
+                    let newMeta = tokenMetadataHash.replace(uri,meta);
+                    return true;
+                };
+            
+            };
+        };
+    };
+
     // Internal
 
     private func _ownerOf(tokenId : T.TokenId) : ?Principal {

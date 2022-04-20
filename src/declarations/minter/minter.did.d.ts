@@ -37,6 +37,11 @@ export interface DRC721 {
       arg_1: Principal,
       arg_2: bigint,
     ) => Promise<undefined>,
+  'updateDNFT' : (
+      arg_0: TokenId,
+      arg_1: string,
+      arg_2: TokenMetadata,
+    ) => Promise<boolean>,
 }
 export type GenericValue = { 'principal' : Principal } |
   { 'boolContent' : boolean } |
