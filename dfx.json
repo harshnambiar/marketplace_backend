@@ -4,6 +4,10 @@
       "main": "src/minter/main.mo",
       "type": "motoko"
     },
+    "token": {
+      "main": "src/token/token.mo",
+      "type": "motoko"
+    },
     "minter_assets": {
       "dependencies": [
         "minter"

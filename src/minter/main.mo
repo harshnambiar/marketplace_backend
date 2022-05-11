@@ -10,6 +10,7 @@ import Iter "mo:base/Iter";
 import T "dip721_types";
 import Debug "mo:base/Debug";
 import Time "mo:base/Time";
+//import Token "canister:token";
 
 actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
@@ -276,6 +277,21 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         assert _isApprovedOrOwner(msg.caller, tokenId);
         Debug.print(debug_show "hi");
         _transfer(from, to, tokenId);
+    };
+
+    public shared(msg) func paidTransfer(from : Principal, to: Principal, tokenId: Nat) : async Bool{
+        assert _isApprovedOrOwner(msg.caller, tokenId);
+        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {minBalance: (Principal) -> async Nat};
+        let minbal = await act.minBalance(to);
+        let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
+        let bal = await act2.balanceOf(to);
+        let price: Nat = 10000;
+        if (bal - price < minbal){
+            return false;
+        };
+        Debug.print(debug_show minbal);
+        _transfer(from, to, tokenId);
+        return true;
     };
 
     // Mint without authentication
@@ -565,6 +581,11 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         _decrementBalance(owner);
 
         ignore owners.remove(tokenId);
+    };
+
+    public func x() : async Int{
+        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {show_time: () -> async Int};
+        return await act.show_time();
     };
 
     system func preupgrade() {
