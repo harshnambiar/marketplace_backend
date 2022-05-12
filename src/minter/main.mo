@@ -130,6 +130,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private stable var operatorApprovalsEntries : [(Principal, [Principal])] = [];
     private stable var activeAuctionEntries : [(T.TokenId, Nat)] = [];
     private stable var auctionApplicationEntries : [(Text, Nat)] = [];  
+    private stable var nftPriceEntries : [(T.TokenId, Nat)] = [];
+    private stable var nftUpvoteEntries : [(T.TokenId, Nat)] = [];
+    private stable var nftDownvoteEntries : [(T.TokenId, Nat)] = [];
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
@@ -139,8 +142,10 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private let operatorApprovals : HashMap.HashMap<Principal, [Principal]> = HashMap.fromIter<Principal, [Principal]>(operatorApprovalsEntries.vals(), 10, Principal.equal, Principal.hash);
     private let activeAuctions : HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(activeAuctionEntries.vals(), 10, Nat.equal, Hash.hash);
     private let auctionApplications : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(auctionApplicationEntries.vals(), 10, Text.equal, Text.hash);
-    
-    
+    private let nftPrices: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftPriceEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let nftUpvotes: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftUpvoteEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let nftDownvotes: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftDownvoteEntries.vals(), 10, Nat.equal, Hash.hash);
+
     func textToNat(t : Text) : ?Nat{
         let s = t.size();
         if (s == 0){
@@ -272,6 +277,58 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         
     };
 
+    public shared(msg) func listForSale(tid: T.TokenId, price: Nat): async Bool{
+        let ownerOfNFT = owners.get(tid);
+        switch ownerOfNFT{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != msg.caller){
+                    return false;
+                }
+                else {
+                    let newPriceEntry = nftPrices.replace(tid,price);
+                };
+            };
+        };
+        return true;
+
+    };
+
+    public query func showPrice(tid : T.TokenId): async ?Nat{
+        return nftPrices.get(tid);
+        
+    };
+
+    public func upvoteNFT(tid: T.TokenId): async Bool{
+        assert _exists(tid);
+        let currentUpvotes = nftUpvotes.get(tid);
+        switch currentUpvotes{
+            case null{
+                let res = nftUpvotes.put(tid,1);
+            };
+            case (?nat){
+                let res = nftUpvotes.replace(tid,nat+1);
+            };
+        };
+        return true;
+    };
+
+    public func downvoteNFT(tid: T.TokenId): async Bool{
+        assert _exists(tid);
+        let currentDownvotes = nftDownvotes.get(tid);
+        switch currentDownvotes{
+            case null{
+                let res = nftDownvotes.put(tid,1);
+            };
+            case (?nat){
+                let res = nftDownvotes.replace(tid,nat+1);
+            };
+        };
+        return true;
+    };
+
     public shared(msg) func transferFrom(from : Principal, to : Principal, tokenId : Nat) : () {
         Debug.print(debug_show 1111);
         assert _isApprovedOrOwner(msg.caller, tokenId);
@@ -279,13 +336,22 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         _transfer(from, to, tokenId);
     };
 
-    public shared(msg) func paidTransfer(from : Principal, to: Principal, tokenId: Nat) : async Bool{
+    public shared(msg) func paidTransfer(from : Principal, to: Principal, tokenId: T.TokenId) : async Bool{
         assert _isApprovedOrOwner(msg.caller, tokenId);
         let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {minBalance: (Principal) -> async Nat};
         let minbal = await act.minBalance(to);
         let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
         let bal = await act2.balanceOf(to);
-        let price: Nat = 10000;
+        let priceOpt = nftPrices.get(tokenId);
+        var price = 0;
+        switch priceOpt{
+            case null{
+                return false;
+            };
+            case (?nat){
+                price := nat;
+            };
+        };
         if (bal - price < minbal){
             return false;
         };
@@ -309,9 +375,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     //Mint requires authentication in the frontend, but metadata is self created at runtime.
-    public shared ({caller}) func mintFromParameters(uri: Text, tid: Nat) : async Nat{
+    public shared ({caller}) func mintFromParameters(uri: Text) : async Nat{
         tokenPk += 1;
-        let meta: TokenMetadata = toTokenMetadata(tid, caller);
+        let meta: TokenMetadata = toTokenMetadata(tokenPk, caller);
         _mint(caller, tokenPk, uri, meta);
         return tokenPk;
     };
@@ -597,7 +663,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         operatorApprovalsEntries := Iter.toArray(operatorApprovals.entries());
         activeAuctionEntries := Iter.toArray(activeAuctions.entries());
         auctionApplicationEntries := Iter.toArray(auctionApplications.entries());
-        
+        nftPriceEntries := Iter.toArray(nftPrices.entries());
+        nftDownvoteEntries := Iter.toArray(nftDownvotes.entries());
+        nftUpvoteEntries := Iter.toArray(nftUpvotes.entries());
     };
 
     system func postupgrade() {
@@ -609,5 +677,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         operatorApprovalsEntries := [];
         auctionApplicationEntries := [];
         activeAuctionEntries := [];
+        nftPriceEntries := [];
+        nftDownvoteEntries := [];
+        nftUpvoteEntries := [];
     };
 };
