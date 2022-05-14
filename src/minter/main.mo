@@ -120,6 +120,24 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         #other;
     };
 
+    public type TxReceipt = {
+        #Ok: Nat;
+        #Err: {
+            #InsufficientAllowance;
+            #InsufficientBalance;
+            #ErrorOperationStyle;
+            #Unauthorized;
+            #LedgerTrap;
+            #ErrorTo;
+            #Other: Text;
+            #BlockUsed;
+            #AmountTooSmall;
+            #WrongCode;
+            #NotEnoughUnlockedTokens;
+            #IncompatibleSpecialTransferCombination;
+        };
+    };
+
     
 
     private stable var tokenURIEntries : [(T.TokenId, Text)] = [];
@@ -336,12 +354,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         _transfer(from, to, tokenId);
     };
 
-    public shared(msg) func paidTransfer(from : Principal, to: Principal, tokenId: T.TokenId) : async Bool{
-        assert _isApprovedOrOwner(msg.caller, tokenId);
-        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {minBalance: (Principal) -> async Nat};
-        let minbal = await act.minBalance(to);
-        let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
-        let bal = await act2.balanceOf(to);
+    public shared(msg) func buyNFT(tokenId: T.TokenId) : async Bool{
         let priceOpt = nftPrices.get(tokenId);
         var price = 0;
         switch priceOpt{
@@ -352,12 +365,44 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                 price := nat;
             };
         };
-        if (bal - price < minbal){
+        
+        let ownerOpt = owners.get(tokenId);
+        var currentOwner: Principal = Principal.fromText("2vxsx-fae");
+        switch ownerOpt{
+            case null{
+                return false;
+            };
+            case (?principal){
+                currentOwner := principal;
+            };
+        };
+        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {getMinBal: (Principal) -> async Nat};
+        let minbal = await act.getMinBal(msg.caller);
+        let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
+        let bal = await act2.balanceOf(msg.caller);
+
+        if (bal < minbal + price){
             return false;
         };
-        Debug.print(debug_show minbal);
-        _transfer(from, to, tokenId);
-        return true;
+        
+        
+        Debug.print(debug_show currentOwner);
+        Debug.print(debug_show price);
+
+        let act3 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+        let txn = await act3.transferForNFT(msg.caller,currentOwner,price);
+        let newBal = await act2.balanceOf(msg.caller);
+        if (newBal != bal){
+            
+        
+            Debug.print(debug_show txn);
+            let priceEntryRemoval = nftPrices.delete(tokenId);
+            _transfer(currentOwner, msg.caller, tokenId);
+            return true;
+        }
+        else {
+            return false;
+        };
     };
 
     // Mint without authentication

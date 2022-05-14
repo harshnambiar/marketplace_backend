@@ -817,6 +817,10 @@ shared(msg) actor class Token(
         return minBal;
     };
 
+    public query func getMinBal(p: Principal): async Nat{
+        return minBalance(p);
+    };
+
     /*
     *   Core interfaces:
     *       update calls:
@@ -940,6 +944,7 @@ shared(msg) actor class Token(
 
     /// Transfers value amount of tokens from Principal from to Principal to.
     public shared(msg) func transferFrom(from: Principal, to: Principal, value: Nat) : async TxReceipt {
+        Debug.print(debug_show msg.caller);
         if (_balanceOf(from) < value + fee) { return #Err(#InsufficientBalance); };
         if (_balanceOf(from) < value + fee + minBalance(from)) { return #Err(#NotEnoughUnlockedTokens); };
         let allowed : Nat = _allowance(from, msg.caller);
@@ -959,6 +964,28 @@ shared(msg) actor class Token(
                 else { allowances.put(from, allowance_from); };
             };
         };
+        ignore addRecord(
+            msg.caller, "transferFrom",
+            [
+                ("from", #Principal(from)),
+                ("to", #Principal(to)),
+                ("value", #U64(u64(value))),
+                ("fee", #U64(u64(fee)))
+            ]
+        );
+        txcounter += 1;
+        return #Ok(txcounter - 1);
+    };
+
+    public shared(msg) func transferForNFT(from: Principal, to: Principal, value: Nat) : async TxReceipt {
+        if (msg.caller != Principal.fromText("r7inp-6aaaa-aaaaa-aaabq-cai")){
+            return #Err(#Unauthorized);
+        };
+        if (_balanceOf(from) < value + fee) { return #Err(#InsufficientBalance); };
+        if (_balanceOf(from) < value + fee + minBalance(from)) { return #Err(#NotEnoughUnlockedTokens); };
+        
+        _transfer(from, to, value);
+        
         ignore addRecord(
             msg.caller, "transferFrom",
             [
