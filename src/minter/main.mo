@@ -295,6 +295,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         
     };
 
+    //List an NFT under your ownership for sale
     public shared(msg) func listForSale(tid: T.TokenId, price: Nat): async Bool{
         let ownerOfNFT = owners.get(tid);
         switch ownerOfNFT{
@@ -314,11 +315,13 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     };
 
+    //to get the price based on token id
     public query func showPrice(tid : T.TokenId): async ?Nat{
         return nftPrices.get(tid);
         
     };
 
+    //to upvote an NFT and increase its visibility via meriticratic constraints
     public func upvoteNFT(tid: T.TokenId): async Bool{
         assert _exists(tid);
         let currentUpvotes = nftUpvotes.get(tid);
@@ -333,6 +336,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         return true;
     };
 
+    //to decrease the visibility of an NFT via meritocratic constraints
     public func downvoteNFT(tid: T.TokenId): async Bool{
         assert _exists(tid);
         let currentDownvotes = nftDownvotes.get(tid);
@@ -347,6 +351,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         return true;
     };
 
+    //directly transfer an NFT
     public shared(msg) func transferFrom(from : Principal, to : Principal, tokenId : Nat) : () {
         Debug.print(debug_show 1111);
         assert _isApprovedOrOwner(msg.caller, tokenId);
@@ -354,6 +359,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         _transfer(from, to, tokenId);
     };
 
+    //Purchase a listed NFT
     public shared(msg) func buyNFT(tokenId: T.TokenId) : async Bool{
         let priceOpt = nftPrices.get(tokenId);
         var price = 0;

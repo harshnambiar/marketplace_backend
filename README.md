@@ -2,6 +2,13 @@
 
 Basic NFT minter inspired by the DIP 721 standard (implementation not guarantee, consider this example as an educational ressource. For a production project with DIP721, please take a look at the official DIP721 repo).
 
+30 Day Sprint Index (all on main.mo unless stated otherwise):
+Development of Buy/Sell functionality: line 363
+Development of Upvote functionality: line 325
+Implementation of Auction functionality: line 437
+Implementation of Staking functionality (in token.mo): line 1109
+Implementation of Tags functionality: line 15
+
 ## Running the project locally
 
 To run the project locally, you can use the following commands:
