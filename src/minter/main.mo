@@ -151,6 +151,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private stable var nftPriceEntries : [(T.TokenId, Nat)] = [];
     private stable var nftUpvoteEntries : [(T.TokenId, Nat)] = [];
     private stable var nftDownvoteEntries : [(T.TokenId, Nat)] = [];
+    private stable var upvoteRecordEntries : [(T.TokenId, [Principal])] = [];
+    private stable var downvoteRecordEntries : [(T.TokenId, [Principal])] = [];
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
@@ -163,6 +165,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private let nftPrices: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftPriceEntries.vals(), 10, Nat.equal, Hash.hash);
     private let nftUpvotes: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftUpvoteEntries.vals(), 10, Nat.equal, Hash.hash);
     private let nftDownvotes: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftDownvoteEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let upvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(upvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let downvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(downvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
+
 
     func textToNat(t : Text) : ?Nat{
         let s = t.size();
@@ -295,8 +300,15 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         
     };
 
-    //List an NFT under your ownership for sale
+    //List an NFT under your ownership for sale. The NFT must not be under auction at this time.
     public shared(msg) func listForSale(tid: T.TokenId, price: Nat): async Bool{
+        let isAuctioned = activeAuctions.get(tid);
+        switch isAuctioned{
+            case (?nat){
+                return false;
+            };
+            case null{};
+        };
         let ownerOfNFT = owners.get(tid);
         switch ownerOfNFT{
             case null{
@@ -322,8 +334,34 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     //to upvote an NFT and increase its visibility via meriticratic constraints
-    public func upvoteNFT(tid: T.TokenId): async Bool{
+    public shared({caller}) func upvoteNFT(tid: T.TokenId): async Bool{
         assert _exists(tid);
+        let currentlyDownvoted = downvoteRecords.get(tid);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == caller){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyUpvoted = upvoteRecords.get(tid);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == caller){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(caller));
+                let replacedArr = upvoteRecords.replace(tid,newArr);
+            };
+            case null{
+                upvoteRecords.put(tid,Array.make(caller));
+            };
+        };
         let currentUpvotes = nftUpvotes.get(tid);
         switch currentUpvotes{
             case null{
@@ -337,8 +375,34 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     //to decrease the visibility of an NFT via meritocratic constraints
-    public func downvoteNFT(tid: T.TokenId): async Bool{
+    public shared({caller}) func downvoteNFT(tid: T.TokenId): async Bool{
         assert _exists(tid);
+        let currentlyUpvoted = upvoteRecords.get(tid);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == caller){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyDownvoted = downvoteRecords.get(tid);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == caller){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(caller));
+                let replacedArr = downvoteRecords.replace(tid,newArr);
+            };
+            case null{
+                downvoteRecords.put(tid,Array.make(caller));
+            };
+        };
         let currentDownvotes = nftDownvotes.get(tid);
         switch currentDownvotes{
             case null{
@@ -351,12 +415,20 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         return true;
     };
 
-    //directly transfer an NFT
-    public shared(msg) func transferFrom(from : Principal, to : Principal, tokenId : Nat) : () {
-        Debug.print(debug_show 1111);
+    //directly transfer an NFT provided it is NOT undergoing an auction, and takes it off sale
+    public shared(msg) func transferFrom(from : Principal, to : Principal, tokenId : Nat) : async Bool {
+        let isAuctioned = activeAuctions.get(tokenId);
+        switch isAuctioned{
+            case (?nat){
+                return false;
+            };
+            case null {};
+        };
         assert _isApprovedOrOwner(msg.caller, tokenId);
-        Debug.print(debug_show "hi");
+        
         _transfer(from, to, tokenId);
+        nftPrices.delete(tokenId);
+        return true;
     };
 
     //Purchase a listed NFT
@@ -433,9 +505,19 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         return tokenPk;
     };
 
-    //To hold an auction for owned NFT
+    /*  
+        To hold an auction for owned NFT. It needs to be NOT listed for sale so owenership does
+        not change during the auction.
+    */
     public shared ({caller}) func auctionStart(t : T.TokenId, minSale : Nat) : async Bool {
         let tokenOwner = owners.get(t);
+        let alreadyListed = nftPrices.get(t);
+        switch alreadyListed{
+            case (?nat){
+                return false;
+            };
+            case null{};
+        };
         switch (tokenOwner) {
             case null {
                 return false;
@@ -717,6 +799,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         nftPriceEntries := Iter.toArray(nftPrices.entries());
         nftDownvoteEntries := Iter.toArray(nftDownvotes.entries());
         nftUpvoteEntries := Iter.toArray(nftUpvotes.entries());
+        upvoteRecordEntries := Iter.toArray(upvoteRecords.entries());
+        downvoteRecordEntries := Iter.toArray(downvoteRecords.entries());
     };
 
     system func postupgrade() {
@@ -731,5 +815,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         nftPriceEntries := [];
         nftDownvoteEntries := [];
         nftUpvoteEntries := [];
+        upvoteRecordEntries := [];
+        downvoteRecordEntries := [];
     };
 };
