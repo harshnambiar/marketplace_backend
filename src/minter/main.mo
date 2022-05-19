@@ -575,7 +575,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                     return false;
                 } 
                 else {
-                    var winningBidder : Principal = Principal.fromText("");
+                    var winningBidder : Principal = Principal.fromText("2vxsx-fae");
                     var winningBid : Nat = 0;
                     for ((key,item) in auctionApplications.entries()){
                         let iter = Text.split(key,#text("<<<>>>"));
@@ -593,7 +593,11 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                         if (tid == t){
                             let bidder : Principal = Principal.fromText(iterArray[1]);
                             let bid = item;
-                            if (bid > winningBid){
+                            let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {getMinBal: (Principal) -> async Nat};
+                            let minbal = await act.getMinBal(bidder);
+                            let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
+                            let bal = await act2.balanceOf(bidder);
+                            if (bid > winningBid and bal > minbal + bid){
                                 winningBid := bid;
                                 winningBidder := bidder;
                             };
@@ -602,6 +606,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                     };
                     activeAuctions.delete(t);
                     if (winningBid != 0){
+                        let act3 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+                        let txn = await act3.transferForNFT(winningBidder,caller,winningBid);
                         _transfer(caller, winningBidder, t);
                         return true;
                     }
