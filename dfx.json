@@ -8,6 +8,10 @@
       "main": "src/token/token.mo",
       "type": "motoko"
     },
+    "landing": {
+      "main": "src/landing/landing.mo",
+      "type": "motoko"
+    },
     "minter_assets": {
       "dependencies": [
         "minter"
