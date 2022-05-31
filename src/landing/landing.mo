@@ -2,6 +2,7 @@ import Text "mo:base/Text";
 import Principal "mo:base/Principal";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
+import Minter "../minter/main"
 
 actor class Landing(
     _owner: Principal
@@ -68,6 +69,43 @@ actor class Landing(
 
     public func listCollections(): async [(Text, Principal)]{
         return Iter.toArray(collections.entries());
+    };
+
+    public func listCollectionStatuses(): async [(Text, Text)]{
+        return Iter.toArray(collectionCanisters.entries());
+    };
+
+    public type DRC721 = Minter.DRC721;
+    public shared({caller}) func launchCollection(collName: Text, symbol: Text, tags: [Text]): async (?DRC721){
+        let creator = collections.get(collName);
+        var creatorId = Principal.fromText("2vxsx-fae");
+        switch creator{
+            case null{
+                return null;
+            };
+            case (?principal){
+                creatorId := principal;
+                if (creatorId != caller){
+                    return null;
+                };
+            };
+        };
+        let status = collectionCanisters.get(collName);
+        switch status{
+            case null{
+                return null;
+            };
+            case (?text){
+                if (text != "approved"){
+                    return null;
+                };
+            };
+        };
+        let t = await Minter.DRC721(collName, symbol, tags);
+        let res = collectionCanisters.replace(collName, Principal.toText(Principal.fromActor(t)));
+        return (?t);
+
+
     };
 
     system func preupgrade() {
