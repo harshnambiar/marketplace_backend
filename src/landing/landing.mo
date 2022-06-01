@@ -75,6 +75,27 @@ actor class Landing(
         return Iter.toArray(collectionCanisters.entries());
     };
 
+    public func showCollectionNFTs(collName: Text): async [(Nat,Text)]{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return [];
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return [];
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {showNFTs: () -> async ([(Nat,Text)])};
+        let allNFT = await act.showNFTs();
+        return allNFT;
+    };
+
     public type DRC721 = Minter.DRC721;
     public shared({caller}) func launchCollection(collName: Text, symbol: Text, tags: [Text]): async (?DRC721){
         let creator = collections.get(collName);
@@ -104,9 +125,29 @@ actor class Landing(
         let t = await Minter.DRC721(collName, symbol, tags);
         let res = collectionCanisters.replace(collName, Principal.toText(Principal.fromActor(t)));
         return (?t);
-
-
     };
+
+    public shared({caller}) func mint(collName: Text, uri: Text) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text) -> async (Nat)};
+        let mintedNFT = await act.mintFromParameters2(caller,uri);
+        return true;
+    };
+    
 
     system func preupgrade() {
         collectionEntries := Iter.toArray(collections.entries());

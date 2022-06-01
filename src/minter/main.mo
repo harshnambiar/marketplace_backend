@@ -2,11 +2,11 @@ import Error "mo:base/Error";
 import Hash "mo:base/Hash";
 import HashMap "mo:base/HashMap";
 import Nat "mo:base/Nat";
+import Iter "mo:base/Iter";
 import Text "mo:base/Text";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Array "mo:base/Array";
-import Iter "mo:base/Iter";
 import T "dip721_types";
 import Debug "mo:base/Debug";
 import Time "mo:base/Time";
@@ -247,6 +247,10 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     public shared func isApprovedForAll(owner : Principal, opperator : Principal) : async Bool {
         return _isApprovedForAll(owner, opperator);
+    };
+
+    public shared query func showNFTs() : async [(Nat,Text)]{
+        return Iter.toArray(tokenURIs.entries());
     };
 
     public shared(msg) func approve(to : Principal, tokenId : T.TokenId) : async () {
@@ -502,6 +506,15 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         tokenPk += 1;
         let meta: TokenMetadata = toTokenMetadata(tokenPk, caller);
         _mint(caller, tokenPk, uri, meta);
+        return tokenPk;
+    };
+
+    //Mint requires authentication in the frontend, but metadata is self created at runtime.
+    public shared ({caller}) func mintFromParameters2(to: Principal, uri: Text) : async Nat{
+        Debug.print(debug_show caller);
+        tokenPk += 1;
+        let meta: TokenMetadata = toTokenMetadata(tokenPk, to);
+        _mint(to, tokenPk, uri, meta);
         return tokenPk;
     };
 
