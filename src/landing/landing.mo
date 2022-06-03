@@ -147,6 +147,48 @@ actor class Landing(
         let mintedNFT = await act.mintFromParameters2(caller,uri);
         return true;
     };
+
+    public shared({caller}) func upvoteNFT(collName: Text, tid: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {upvoteNFT2: (Principal, Nat) -> async (Bool)};
+        let res = await act.upvoteNFT2(caller,tid);
+        return res;
+    }; 
+
+    public shared({caller}) func downvoteNFT(collName: Text, tid: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {downvoteNFT2: (Principal, Nat) -> async (Bool)};
+        let res = await act.downvoteNFT2(caller,tid);
+        return res;
+    }; 
     
 
     system func preupgrade() {

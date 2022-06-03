@@ -378,6 +378,48 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         return true;
     };
 
+    //to upvote an NFT and increase its visibility via meriticratic constraints vua intercanister calls from landing
+    public shared({caller}) func upvoteNFT2(address: Principal, tid: T.TokenId): async Bool{
+        Debug.print(debug_show caller);
+        assert _exists(tid);
+        let currentlyDownvoted = downvoteRecords.get(tid);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == address){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyUpvoted = upvoteRecords.get(tid);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == address){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(address));
+                let replacedArr = upvoteRecords.replace(tid,newArr);
+            };
+            case null{
+                upvoteRecords.put(tid,Array.make(address));
+            };
+        };
+        let currentUpvotes = nftUpvotes.get(tid);
+        switch currentUpvotes{
+            case null{
+                let res = nftUpvotes.put(tid,1);
+            };
+            case (?nat){
+                let res = nftUpvotes.replace(tid,nat+1);
+            };
+        };
+        return true;
+    };
+
     //to decrease the visibility of an NFT via meritocratic constraints
     public shared({caller}) func downvoteNFT(tid: T.TokenId): async Bool{
         assert _exists(tid);
@@ -405,6 +447,47 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
             };
             case null{
                 downvoteRecords.put(tid,Array.make(caller));
+            };
+        };
+        let currentDownvotes = nftDownvotes.get(tid);
+        switch currentDownvotes{
+            case null{
+                let res = nftDownvotes.put(tid,1);
+            };
+            case (?nat){
+                let res = nftDownvotes.replace(tid,nat+1);
+            };
+        };
+        return true;
+    };
+
+    //to decrease the visibility of an NFT via meritocratic constraints
+    public shared({caller}) func downvoteNFT2(address: Principal, tid: T.TokenId): async Bool{
+        assert _exists(tid);
+        let currentlyUpvoted = upvoteRecords.get(tid);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == address){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyDownvoted = downvoteRecords.get(tid);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == address){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(address));
+                let replacedArr = downvoteRecords.replace(tid,newArr);
+            };
+            case null{
+                downvoteRecords.put(tid,Array.make(address));
             };
         };
         let currentDownvotes = nftDownvotes.get(tid);
