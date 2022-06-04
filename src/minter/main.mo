@@ -331,6 +331,38 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     };
 
+    /*  List an NFT under your ownership for sale via Intercanister call from Landing. 
+        The NFT must not be under auction at this time.
+    */
+    public shared({caller}) func listForSale2(address: Principal, tid: T.TokenId, price: Nat): async Bool{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let isAuctioned = activeAuctions.get(tid);
+        switch isAuctioned{
+            case (?nat){
+                return false;
+            };
+            case null{};
+        };
+        let ownerOfNFT = owners.get(tid);
+        switch ownerOfNFT{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != address){
+                    return false;
+                }
+                else {
+                    let newPriceEntry = nftPrices.replace(tid,price);
+                };
+            };
+        };
+        return true;
+
+    };
+
     //to get the price based on token id
     public query func showPrice(tid : T.TokenId): async ?Nat{
         return nftPrices.get(tid);
@@ -381,6 +413,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     //to upvote an NFT and increase its visibility via meriticratic constraints vua intercanister calls from landing
     public shared({caller}) func upvoteNFT2(address: Principal, tid: T.TokenId): async Bool{
         Debug.print(debug_show caller);
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
         assert _exists(tid);
         let currentlyDownvoted = downvoteRecords.get(tid);
         switch currentlyDownvoted{
@@ -463,6 +498,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
 
     //to decrease the visibility of an NFT via meritocratic constraints
     public shared({caller}) func downvoteNFT2(address: Principal, tid: T.TokenId): async Bool{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
         assert _exists(tid);
         let currentlyUpvoted = upvoteRecords.get(tid);
         switch currentlyUpvoted{
@@ -541,9 +579,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                 currentOwner := principal;
             };
         };
-        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {getMinBal: (Principal) -> async Nat};
+        let act = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {getMinBal: (Principal) -> async Nat};
         let minbal = await act.getMinBal(msg.caller);
-        let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
+        let act2 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {balanceOf: (Principal) -> async Nat};
         let bal = await act2.balanceOf(msg.caller);
 
         if (bal < minbal + price){
@@ -554,7 +592,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         Debug.print(debug_show currentOwner);
         Debug.print(debug_show price);
 
-        let act3 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+        let act3 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
         let txn = await act3.transferForNFT(msg.caller,currentOwner,price);
         let newBal = await act2.balanceOf(msg.caller);
         if (newBal != bal){
@@ -563,6 +601,61 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
             Debug.print(debug_show txn);
             let priceEntryRemoval = nftPrices.delete(tokenId);
             _transfer(currentOwner, msg.caller, tokenId);
+            return true;
+        }
+        else {
+            return false;
+        };
+    };
+
+    //Purchase a listed NFT via an intercanister call from Landing
+    public shared({caller}) func buyNFT2(address: Principal, tokenId: T.TokenId) : async Bool{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let priceOpt = nftPrices.get(tokenId);
+        var price = 0;
+        switch priceOpt{
+            case null{
+                return false;
+            };
+            case (?nat){
+                price := nat;
+            };
+        };
+        
+        let ownerOpt = owners.get(tokenId);
+        var currentOwner: Principal = Principal.fromText("2vxsx-fae");
+        switch ownerOpt{
+            case null{
+                return false;
+            };
+            case (?principal){
+                currentOwner := principal;
+            };
+        };
+        let act = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {getMinBal: (Principal) -> async Nat};
+        let minbal = await act.getMinBal(address);
+        let act2 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {balanceOf: (Principal) -> async Nat};
+        let bal = await act2.balanceOf(address);
+
+        if (bal < minbal + price){
+            return false;
+        };
+        
+        
+        Debug.print(debug_show currentOwner);
+        Debug.print(debug_show price);
+
+        let act3 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+        let txn = await act3.transferForNFT(address,currentOwner,price);
+        let newBal = await act2.balanceOf(address);
+        if (newBal != bal){
+            
+        
+            Debug.print(debug_show txn);
+            let priceEntryRemoval = nftPrices.delete(tokenId);
+            _transfer(currentOwner, address, tokenId);
             return true;
         }
         else {
@@ -595,6 +688,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     //Mint requires authentication in the frontend, but metadata is self created at runtime.
     public shared ({caller}) func mintFromParameters2(to: Principal, uri: Text) : async Nat{
         Debug.print(debug_show caller);
+        assert(caller == Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai"));
+        
         tokenPk += 1;
         let meta: TokenMetadata = toTokenMetadata(tokenPk, to);
         _mint(to, tokenPk, uri, meta);
@@ -689,9 +784,9 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                         if (tid == t){
                             let bidder : Principal = Principal.fromText(iterArray[1]);
                             let bid = item;
-                            let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {getMinBal: (Principal) -> async Nat};
+                            let act = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {getMinBal: (Principal) -> async Nat};
                             let minbal = await act.getMinBal(bidder);
-                            let act2 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {balanceOf: (Principal) -> async Nat};
+                            let act2 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {balanceOf: (Principal) -> async Nat};
                             let bal = await act2.balanceOf(bidder);
                             if (bid > winningBid and bal > minbal + bid){
                                 winningBid := bid;
@@ -702,7 +797,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                     };
                     activeAuctions.delete(t);
                     if (winningBid != 0){
-                        let act3 = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+                        let act3 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
                         let txn = await act3.transferForNFT(winningBidder,caller,winningBid);
                         _transfer(caller, winningBidder, t);
                         return true;
@@ -885,7 +980,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     public func x() : async Int{
-        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {show_time: () -> async Int};
+        let act = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {show_time: () -> async Int};
         return await act.show_time();
     };
 

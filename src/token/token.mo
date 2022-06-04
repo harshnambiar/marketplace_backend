@@ -978,9 +978,17 @@ shared(msg) actor class Token(
     };
 
     public shared(msg) func transferForNFT(from: Principal, to: Principal, value: Nat) : async TxReceipt {
-        if (msg.caller != Principal.fromText("r7inp-6aaaa-aaaaa-aaabq-cai")){
-            return #Err(#Unauthorized);
+        let act = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"):actor {listActiveCanisters: () -> async [Text]};
+        let availableCans = await act.listActiveCanisters();
+        let rs = Array.find(availableCans,func(val: Text) : Bool {Principal.toText(msg.caller) == val});
+        Debug.print(debug_show availableCans);
+        switch rs{
+            case null{
+                return #Err(#Unauthorized);
+            };
+            case (?text){};
         };
+        
         if (_balanceOf(from) < value + fee) { return #Err(#InsufficientBalance); };
         if (_balanceOf(from) < value + fee + minBalance(from)) { return #Err(#NotEnoughUnlockedTokens); };
         

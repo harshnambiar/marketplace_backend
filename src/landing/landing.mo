@@ -75,6 +75,10 @@ actor class Landing(
         return Iter.toArray(collectionCanisters.entries());
     };
 
+    public func listActiveCanisters(): async [Text]{
+        return Iter.toArray(collectionCanisters.vals());
+    };
+
     public func showCollectionNFTs(collName: Text): async [(Nat,Text)]{
         let status = collectionCanisters.get(collName);
         var canisterId = "";
@@ -187,6 +191,48 @@ actor class Landing(
         };
         let act = actor(canisterId):actor {downvoteNFT2: (Principal, Nat) -> async (Bool)};
         let res = await act.downvoteNFT2(caller,tid);
+        return res;
+    }; 
+
+    public shared({caller}) func listNFT(collName: Text, tid: Nat, price: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {listForSale2: (Principal, Nat, Nat) -> async (Bool)};
+        let res = await act.listForSale2(caller,tid, price);
+        return res;
+    }; 
+
+    public shared({caller}) func buyNFT(collName: Text, tid: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {buyNFT2: (Principal, Nat) -> async (Bool)};
+        let res = await act.buyNFT2(caller,tid);
         return res;
     }; 
     
