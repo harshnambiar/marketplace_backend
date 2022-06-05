@@ -235,6 +235,69 @@ actor class Landing(
         let res = await act.buyNFT2(caller,tid);
         return res;
     }; 
+
+    public shared({caller}) func auctionStart(collName: Text, tid: Nat, minSale: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {auctionStart2: (Principal, Nat, Nat) -> async (Bool)};
+        let res = await act.auctionStart2(caller,tid, minSale);
+        return res;
+    }; 
+
+    public shared({caller}) func auctionBid(collName: Text, tid: Nat, bid: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {auctionBid2: (Principal, Nat, Nat) -> async (Bool)};
+        let res = await act.auctionBid2(caller,tid, bid);
+        return res;
+    }; 
+
+    public shared({caller}) func auctionEnd(collName: Text, tid: Nat) : async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {auctionEnd2: (Principal, Nat) -> async (Bool)};
+        let res = await act.auctionEnd2(caller,tid);
+        return res;
+    }; 
     
 
     system func preupgrade() {

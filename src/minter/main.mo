@@ -725,6 +725,38 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         };
     };
 
+    /*  
+        To hold an auction for owned NFT using an intercanister call from Landing. 
+        It needs to be NOT listed for sale so owenership does not change during the auction.
+    */
+    public shared ({caller}) func auctionStart2(address: Principal, t : T.TokenId, minSale : Nat) : async Bool {
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let tokenOwner = owners.get(t);
+        let alreadyListed = nftPrices.get(t);
+        switch alreadyListed{
+            case (?nat){
+                return false;
+            };
+            case null{};
+        };
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case (?principal) {
+                if (principal != address){
+                    return false;
+                } 
+                else {
+                    activeAuctions.put(t,minSale);
+                    return true;
+                };
+            };
+        };
+    };
+
     //To participate in an auction for an NFT
     public shared({caller}) func auctionBid(t: T.TokenId, bid: Nat) : async Bool {
         let tokenOwner = owners.get(t);
@@ -747,6 +779,38 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                 }
                 else {
                     let bid_identifier : Text = Nat.toText(t) # "<<<>>>" # Principal.toText(caller);
+                    auctionApplications.put(bid_identifier,bid);
+                    return true;
+                }; 
+            };
+        };
+    };
+
+    //To participate in an auction for an NFT using intercanister calls from Landing
+    public shared({caller}) func auctionBid2(address: Principal, t: T.TokenId, bid: Nat) : async Bool {
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let tokenOwner = owners.get(t);
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case default {
+                var i = 0;
+            };
+        };
+        let minBid = activeAuctions.get(t);
+        switch (minBid) {
+            case null {
+                return false;
+            };
+            case (?nat) {
+                if (nat > bid) {
+                    return false;
+                }
+                else {
+                    let bid_identifier : Text = Nat.toText(t) # "<<<>>>" # Principal.toText(address);
                     auctionApplications.put(bid_identifier,bid);
                     return true;
                 }; 
@@ -800,6 +864,65 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
                         let act3 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
                         let txn = await act3.transferForNFT(winningBidder,caller,winningBid);
                         _transfer(caller, winningBidder, t);
+                        return true;
+                    }
+                    else {
+                        return false;
+                    };
+                };
+            };
+        };
+    };
+
+    //To end an auction for owned NFT using intercanister calls from Landing
+    public shared({caller}) func auctionEnd2(address: Principal, t : T.TokenId) : async Bool {
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let tokenOwner = owners.get(t);
+        switch (tokenOwner) {
+            case null {
+                return false;
+            };
+            case (?principal) {
+                if (principal != address){
+                    return false;
+                } 
+                else {
+                    var winningBidder : Principal = Principal.fromText("2vxsx-fae");
+                    var winningBid : Nat = 0;
+                    for ((key,item) in auctionApplications.entries()){
+                        let iter = Text.split(key,#text("<<<>>>"));
+                        let iterArray = Iter.toArray<Text>(iter);
+                        let tID  = textToNat(iterArray[0]);
+                        var tid : Nat = 0;
+                        switch (tID){
+                            case null {
+                                tid := 0;
+                            };
+                            case (?nat) {
+                                tid := nat;
+                            };
+                        };
+                        if (tid == t){
+                            let bidder : Principal = Principal.fromText(iterArray[1]);
+                            let bid = item;
+                            let act = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {getMinBal: (Principal) -> async Nat};
+                            let minbal = await act.getMinBal(bidder);
+                            let act2 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {balanceOf: (Principal) -> async Nat};
+                            let bal = await act2.balanceOf(bidder);
+                            if (bid > winningBid and bal > minbal + bid){
+                                winningBid := bid;
+                                winningBidder := bidder;
+                            };
+                        };
+                        auctionApplications.delete(key);
+                    };
+                    activeAuctions.delete(t);
+                    if (winningBid != 0){
+                        let act3 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {transferForNFT: (Principal, Principal, Nat) -> async TxReceipt};
+                        let txn = await act3.transferForNFT(winningBidder,address,winningBid);
+                        _transfer(address, winningBidder, t);
                         return true;
                     }
                     else {
