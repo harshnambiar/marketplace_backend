@@ -59,7 +59,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         owner: ?Principal;
         operator_: ?Principal;
         is_burned: Bool;
-        properties: [(Text, GenericValue)];
+        //properties: [(Text, GenericValue)];
+        properties: [(Text,Text)];
         minted_at: Int;
         minted_by: Principal;
         transferred_at: ?Int;
@@ -71,14 +72,15 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         collection: ?CollectionMetadata;
     };
 
-    func toTokenMetadata(tid: Nat, _owner: Principal) : TokenMetadata{
+    func toTokenMetadata(tid: Nat, _owner: Principal, mdVal: [(Text,Text)]) : TokenMetadata{
         var gv: GenericValue =     #textContent "Testing Session";
         var output : TokenMetadata = {
             token_identifier = tid;
             owner = ?(_owner);
             operator_ = null;
             is_burned = false;
-            properties = [("Purpose",gv)];
+            //properties = [("Purpose",gv)];
+            properties = mdVal;
             minted_at = Time.now();
             minted_by = _owner;
             transferred_at = null;
@@ -144,6 +146,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private stable var tokenMetadataEntries : [(Text, TokenMetadata)] = [];
     private stable var ownersEntries : [(T.TokenId, Principal)] = [];
     private stable var balancesEntries : [(Principal, Nat)] = [];
+    private stable var propertiesEntries : [(T.TokenId, [(Text,Text)])] = [];
+    private stable var propertyFrequencyEntries : [(Text, Nat)] = [];
     private stable var tokenApprovalsEntries : [(T.TokenId, Principal)] = [];
     private stable var operatorApprovalsEntries : [(Principal, [Principal])] = [];
     private stable var activeAuctionEntries : [(T.TokenId, Nat)] = [];
@@ -158,6 +162,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
     private let owners : HashMap.HashMap<T.TokenId, Principal> = HashMap.fromIter<T.TokenId, Principal>(ownersEntries.vals(), 10, Nat.equal, Hash.hash);
     private let balances : HashMap.HashMap<Principal, Nat> = HashMap.fromIter<Principal, Nat>(balancesEntries.vals(), 10, Principal.equal, Principal.hash);
+    private let properties : HashMap.HashMap<T.TokenId, [(Text,Text)]> = HashMap.fromIter<T.TokenId, [(Text,Text)]>(propertiesEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let propertyFrequencies : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(propertyFrequencyEntries.vals(), 10, Text.equal, Text.hash);
     private let tokenApprovals : HashMap.HashMap<T.TokenId, Principal> = HashMap.fromIter<T.TokenId, Principal>(tokenApprovalsEntries.vals(), 10, Nat.equal, Hash.hash);
     private let operatorApprovals : HashMap.HashMap<Principal, [Principal]> = HashMap.fromIter<Principal, [Principal]>(operatorApprovalsEntries.vals(), 10, Principal.equal, Principal.hash);
     private let activeAuctions : HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(activeAuctionEntries.vals(), 10, Nat.equal, Hash.hash);
@@ -168,6 +174,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     private let upvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(upvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
     private let downvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(downvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
 
+    type Order = {#less; #equal; #greater};
 
     func textToNat(t : Text) : ?Nat{
         let s = t.size();
@@ -302,6 +309,71 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
             };
         };
         
+    };
+
+    public func showAllPropertyFrequency(): async [(Text, Nat)]{
+        return Iter.toArray(propertyFrequencies.entries());
+    };
+
+    func infinityVal(tid: T.TokenId): Nat{
+        let props = properties.get(tid);
+        var total = 1;
+        switch props{
+            case null{
+                return 0;
+            };
+            case (?arr){
+                var i = 0;
+                while (i < arr.size()){
+                    let propFreq = propertyFrequencies.get(arr[i].1 # " " # Nat.toText(i));
+                    switch propFreq{
+                        case null{
+                            return 0;
+                        };
+                        case (?nat){
+                            total *= nat;
+                        };
+                    };
+                    i += 1;
+                };
+            };
+        };
+        return (total);
+    };
+
+    func ivEqual(a: (Nat,Nat), b: (Nat,Nat)): Order{
+        if (a.1 >  b.1){
+            return #greater;
+        };
+        if (a.1 < b.1){
+            return #less;
+        }
+        else {
+            return #equal;
+        }
+    };
+
+    public func infinityRank(): async [(T.TokenId, Nat)]{
+        var i = 1;
+        var ivArray : [(T.TokenId, Nat)]= [];
+        while (i <= tokenPk){
+            ivArray := Array.append<(Nat,Nat)>(ivArray,Array.make((i,infinityVal(i))));
+            i += 1;
+        };
+        let ivSortedArray =  Array.sort<(Nat,Nat)>(ivArray,ivEqual);
+        var ifArray: [(T.TokenId, Nat)] = [];
+        ifArray := Array.append<(Nat,Nat)>(ifArray,Array.make((ivSortedArray[0].0,1)));
+        i := 1;
+        while (i < tokenPk){
+            if (ivSortedArray[i].1 == ivSortedArray[i - 1].1){
+                ifArray := Array.append<(Nat,Nat)>(ifArray, Array.make((ivSortedArray[i].0, ifArray[i-1].1)));
+            }
+            else{
+                ifArray := Array.append<(Nat,Nat)>(ifArray, Array.make((ivSortedArray[i].0, ifArray[i-1].1 + 1)));
+            };
+            i += 1;
+        };
+        return ifArray;
     };
 
     //List an NFT under your ownership for sale. The NFT must not be under auction at this time.
@@ -678,22 +750,56 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
     };
 
     //Mint requires authentication in the frontend, but metadata is self created at runtime.
-    public shared ({caller}) func mintFromParameters(uri: Text) : async Nat{
+    public shared ({caller}) func mintFromParameters(uri: Text, md: [(Text,Text)]) : async Nat{
+        
+        let meta: TokenMetadata = toTokenMetadata(tokenPk + 1, caller,md);
+        _mint(caller, tokenPk + 1, uri, meta);
         tokenPk += 1;
-        let meta: TokenMetadata = toTokenMetadata(tokenPk, caller);
-        _mint(caller, tokenPk, uri, meta);
+        properties.put(tokenPk,md);
+        var i = 0;
+        while (i < md.size()){
+            let pval = propertyFrequencies.get(md[i].1 # " " # Nat.toText(i));
+            switch pval{
+                case null{
+                    propertyFrequencies.put((md[i].1 # " " # Nat.toText(i)),1);
+                };
+                case (?nat){
+                    let res = propertyFrequencies.replace((md[i].1 # " " # Nat.toText(i)),nat + 1);
+                };
+            };
+            i += 1;
+        };
         return tokenPk;
     };
 
     //Mint requires authentication in the frontend, but metadata is self created at runtime.
-    public shared ({caller}) func mintFromParameters2(to: Principal, uri: Text) : async Nat{
+    public shared ({caller}) func mintFromParameters2(to: Principal, uri: Text, md: [(Text,Text)]) : async Nat{
         Debug.print(debug_show caller);
         assert(caller == Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai"));
         
+        
+        let meta: TokenMetadata = toTokenMetadata(tokenPk + 1, to, md);
+        _mint(to, tokenPk + 1, uri, meta);
         tokenPk += 1;
-        let meta: TokenMetadata = toTokenMetadata(tokenPk, to);
-        _mint(to, tokenPk, uri, meta);
+        properties.put(tokenPk,md);
+        var i = 0;
+        while (i < md.size()){
+            let pval = propertyFrequencies.get(md[i].1 # " " # Nat.toText(i));
+            switch pval{
+                case null{
+                    propertyFrequencies.put((md[i].1 # " " # Nat.toText(i)),1);
+                };
+                case (?nat){
+                    let res = propertyFrequencies.replace((md[i].1 # " " # Nat.toText(i)),nat + 1);
+                };
+            };
+            i += 1;
+        };
         return tokenPk;
+    };
+
+    public func md(): async [(Text,Text)]{
+        return Array.append(Array.make(("hello","world")), Array.make(("hey","there")));
     };
 
     /*  
@@ -1112,6 +1218,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         tokenMetadataEntries := Iter.toArray(tokenMetadataHash.entries());
         ownersEntries := Iter.toArray(owners.entries());
         balancesEntries := Iter.toArray(balances.entries());
+        propertiesEntries := Iter.toArray(properties.entries());
+        propertyFrequencyEntries := Iter.toArray(propertyFrequencies.entries());
         tokenApprovalsEntries := Iter.toArray(tokenApprovals.entries());
         operatorApprovalsEntries := Iter.toArray(operatorApprovals.entries());
         activeAuctionEntries := Iter.toArray(activeAuctions.entries());
@@ -1128,6 +1236,8 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
         tokenMetadataEntries := [];
         ownersEntries := [];
         balancesEntries := [];
+        propertiesEntries := [];
+        propertyFrequencyEntries := [];
         tokenApprovalsEntries := [];
         operatorApprovalsEntries := [];
         auctionApplicationEntries := [];
