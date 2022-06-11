@@ -2,15 +2,22 @@ import Text "mo:base/Text";
 import Principal "mo:base/Principal";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
-import Minter "../minter/main"
+import Minter "../minter/main";
+import Array "mo:base/Array";
 
 actor class Landing(
     _owner: Principal
     ) = this{
     private stable var collectionEntries : [(Text, Principal)] = [];
     private stable var collectionCanisterEntries : [(Text, Text)] = [];
+    private stable var collectionPopularityEntries : [(Text, Int)] = [];
+    private stable var upvoteCollectionEntries : [(Text, [Principal])] = [];
+    private stable var downvoteCollectionEntries : [(Text, [Principal])] = [];
     private let collections : HashMap.HashMap<Text, Principal> = HashMap.fromIter<Text, Principal>(collectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionCanisters : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(collectionCanisterEntries.vals(), 10, Text.equal, Text.hash);
+    private let collectionPopularity : HashMap.HashMap<Text, Int> = HashMap.fromIter<Text, Int>(collectionPopularityEntries.vals(), 10, Text.equal, Text.hash);
+    private let upvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(upvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
+    private let downvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(downvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
 
     public shared({caller}) func requestApproval(collName: Text): async Bool{
         let creator = collections.get(collName);
@@ -126,7 +133,7 @@ actor class Landing(
                 };
             };
         };
-        let t = await Minter.DRC721(collName, symbol, tags);
+        let t = await Minter.DRC721(collName, symbol, tags, caller, _owner);
         let res = collectionCanisters.replace(collName, Principal.toText(Principal.fromActor(t)));
         return (?t);
     };
@@ -320,14 +327,134 @@ actor class Landing(
         return res;
     }; 
 
+    public shared({caller}) func upvoteCollection(collName: Text): async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        
+        let currentlyDownvoted = downvoteRecords.get(collName);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == caller){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyUpvoted = upvoteRecords.get(collName);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == caller){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(caller));
+                let replacedArr = upvoteRecords.replace(collName,newArr);
+            };
+            case null{
+                upvoteRecords.put(collName,Array.make(caller));
+            };
+        };
+        let currentUpvotes = collectionPopularity.get(collName);
+        switch currentUpvotes{
+            case null{
+                let res = collectionPopularity.put(collName,1);
+            };
+            case (?int){
+                let res = collectionPopularity.replace(collName,int+1);
+            };
+        };
+        return true;
+    };
+
+    public shared({caller}) func downvoteCollection(collName: Text): async Bool{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return false;
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return false;
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        
+        let currentlyUpvoted = upvoteRecords.get(collName);
+        switch currentlyUpvoted{
+            case (?array){
+                for (upvoter in array.vals()){
+                    if (upvoter == caller){
+                        return false;
+                    };
+                };
+            };
+            case null {};
+        };
+        let currentlyDownvoted = downvoteRecords.get(collName);
+        switch currentlyDownvoted{
+            case (?array){
+                for (downvoter in array.vals()){
+                    if (downvoter == caller){
+                        return false;
+                    };
+                };
+                let newArr : [Principal] = Array.append<Principal>(array,Array.make(caller));
+                let replacedArr = downvoteRecords.replace(collName,newArr);
+            };
+            case null{
+                downvoteRecords.put(collName,Array.make(caller));
+            };
+        };
+        let currentDownvotes = collectionPopularity.get(collName);
+        switch currentDownvotes{
+            case null{
+                let res = collectionPopularity.put(collName,-1);
+            };
+            case (?int){
+                let res = collectionPopularity.replace(collName,int-1);
+            };
+        };
+        return true;
+    };
+
+    public func displayPopularity(collName: Text): async ?Int{
+        return collectionPopularity.get(collName);
+    };
+
     system func preupgrade() {
         collectionEntries := Iter.toArray(collections.entries());
         collectionCanisterEntries := Iter.toArray(collectionCanisters.entries());
+        collectionPopularityEntries := Iter.toArray(collectionPopularity.entries());
+        upvoteCollectionEntries := Iter.toArray(upvoteRecords.entries());
+        downvoteCollectionEntries := Iter.toArray(downvoteRecords.entries());
     };
 
     system func postupgrade() {
         collectionEntries := [];
         collectionCanisterEntries := [];
+        collectionPopularityEntries := [];
+        upvoteCollectionEntries := [];
+        downvoteCollectionEntries := [];
     };
 
 };

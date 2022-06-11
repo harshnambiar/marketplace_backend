@@ -12,7 +12,7 @@ import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 //import Token "canister:token";
 
-actor class DRC721(_name : Text, _symbol : Text, _tags: [Text]) {
+actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Principal, _royalty: Principal) {
 
     //Using DIP721 standard, adapted from https://github.com/SuddenlyHazel/DIP721/blob/main/src/DIP721/DIP721.mo
     private stable var tokenPk : Nat = 0;
