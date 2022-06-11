@@ -131,7 +131,7 @@ actor class Landing(
         return (?t);
     };
 
-    public shared({caller}) func mint(collName: Text, uri: Text) : async Bool{
+    public shared({caller}) func mint(collName: Text, uri: Text, md: [(Text,Text)]) : async Bool{
         let status = collectionCanisters.get(collName);
         var canisterId = "";
         switch status{
@@ -147,8 +147,8 @@ actor class Landing(
                 };
             };
         };
-        let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text) -> async (Nat)};
-        let mintedNFT = await act.mintFromParameters2(caller,uri);
+        let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text, [(Text,Text)]) -> async (Nat)};
+        let mintedNFT = await act.mintFromParameters2(caller,uri, md);
         return true;
     };
 
@@ -299,6 +299,26 @@ actor class Landing(
         return res;
     }; 
     
+    public shared({caller}) func infinityRank(collName: Text) : async [(Nat, Nat)]{
+        let status = collectionCanisters.get(collName);
+        var canisterId = "";
+        switch status{
+            case null{
+                return [];
+            };
+            case (?text){
+                if (text == "pending" or text == "approved"){
+                    return [];
+                }
+                else {
+                    canisterId := text;
+                };
+            };
+        };
+        let act = actor(canisterId):actor {infinityRank: () -> async ([(Nat,Nat)])};
+        let res = await act.infinityRank();
+        return res;
+    }; 
 
     system func preupgrade() {
         collectionEntries := Iter.toArray(collections.entries());
