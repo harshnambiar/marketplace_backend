@@ -1281,6 +1281,15 @@ shared(msg) actor class Token(
         };
     };
 
+    public shared({caller}) func showBal(p : Principal): async Nat{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return 0;
+        };
+        
+        return _balanceOf(p);
+        
+    };
+
     /// Get transaction history size
     public query func historySize() : async Nat {
         return txcounter;

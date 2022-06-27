@@ -4,6 +4,7 @@ import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Minter "../minter/main";
 import Array "mo:base/Array";
+import Debug "mo:base/Debug";
 
 actor class Landing(
     _owner: Principal
@@ -13,12 +14,71 @@ actor class Landing(
     private stable var collectionPopularityEntries : [(Text, Int)] = [];
     private stable var upvoteCollectionEntries : [(Text, [Principal])] = [];
     private stable var downvoteCollectionEntries : [(Text, [Principal])] = [];
+    private stable var collectionVolumeEntries : [(Text, Nat)] = [];
     private let collections : HashMap.HashMap<Text, Principal> = HashMap.fromIter<Text, Principal>(collectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionCanisters : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(collectionCanisterEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionPopularity : HashMap.HashMap<Text, Int> = HashMap.fromIter<Text, Int>(collectionPopularityEntries.vals(), 10, Text.equal, Text.hash);
     private let upvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(upvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
     private let downvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(downvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
+    private let collectionVolume : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(collectionVolumeEntries.vals(), 10, Text.equal, Text.hash);
 
+    type Order = {#less; #equal; #greater};
+
+    func arSort(a: (Text,Int), b: (Text,Int)): Order{
+        if (a.1 >  b.1){
+            return #greater;
+        };
+        if (a.1 < b.1){
+            return #less;
+        }
+        else {
+            return #equal;
+        }
+    };
+
+    func arSort2(a: (Text,Nat), b: (Text,Nat)): Order{
+        if (a.1 >  b.1){
+            return #greater;
+        };
+        if (a.1 < b.1){
+            return #less;
+        }
+        else {
+            return #equal;
+        }
+    };
+
+
+    public func showPopular(): async [(Text, Int)]{
+        var popArr : [(Text, Int)] = Iter.toArray(collectionPopularity.entries());
+        var sortArr = Array.sort<(Text, Int)>(popArr, arSort);
+        var i = 0;
+        var k = 0;
+        var retArr : [(Text, Int)] = [];
+        while (i < sortArr.size() and k < 5){
+            retArr := Array.append(retArr, Array.make(sortArr[sortArr.size() - i - 1]));
+            i += 1;
+            k += 1;
+        };
+        return retArr;
+
+    };
+
+    public func showHot(): async [(Text, Nat)]{
+        var popArr : [(Text, Nat)] = Iter.toArray(collectionVolume.entries());
+        var sortArr = Array.sort<(Text, Nat)>(popArr, arSort2);
+        var i = 0;
+        var k = 0;
+        var retArr : [(Text, Nat)] = [];
+        while (i < sortArr.size() and k < 5){
+            retArr := Array.append(retArr, Array.make(sortArr[sortArr.size() - i - 1]));
+            i += 1;
+            k += 1;
+        };
+        return retArr;
+
+    };
+    
     public shared({caller}) func requestApproval(collName: Text): async Bool{
         let creator = collections.get(collName);
         switch creator{
@@ -238,8 +298,29 @@ actor class Landing(
                 };
             };
         };
+        let act2 = actor(canisterId):actor {showPrice: (Nat) -> async (?Nat)};
+        let res2 = await act2.showPrice(tid);
         let act = actor(canisterId):actor {buyNFT2: (Principal, Nat) -> async (Bool)};
         let res = await act.buyNFT2(caller,tid);
+        var price = 0;
+        switch res2{
+            case null {};
+            case (?nat){
+                price := nat;
+            };
+        };
+       
+        if (res){
+            let currentVol = collectionVolume.get(collName);
+            switch currentVol{
+                case null{
+                    collectionVolume.put(collName, price);
+                };
+                case (?vol){
+                    let res3 = collectionVolume.replace(collName, price + vol);
+                };
+            };
+        };
         return res;
     }; 
 
@@ -301,8 +382,25 @@ actor class Landing(
                 };
             };
         };
+        let act1 = actor("r7inp-6aaaa-aaaaa-aaabq-cai"):actor {showBal: (Principal) -> async (Nat)};
+        let res1 = await act1.showBal(caller);
         let act = actor(canisterId):actor {auctionEnd2: (Principal, Nat) -> async (Bool)};
         let res = await act.auctionEnd2(caller,tid);
+        
+        let res2 = await act1.showBal(caller);
+        var price = res2 - res1;
+        Debug.print(debug_show price);
+         if (res){
+            let currentVol = collectionVolume.get(collName);
+            switch currentVol{
+                case null{
+                    collectionVolume.put(collName, price);
+                };
+                case (?vol){
+                    let res3 = collectionVolume.replace(collName, price + vol);
+                };
+            };
+        };
         return res;
     }; 
     
@@ -447,6 +545,7 @@ actor class Landing(
         collectionPopularityEntries := Iter.toArray(collectionPopularity.entries());
         upvoteCollectionEntries := Iter.toArray(upvoteRecords.entries());
         downvoteCollectionEntries := Iter.toArray(downvoteRecords.entries());
+        collectionVolumeEntries := Iter.toArray(collectionVolume.entries());
     };
 
     system func postupgrade() {
@@ -455,6 +554,7 @@ actor class Landing(
         collectionPopularityEntries := [];
         upvoteCollectionEntries := [];
         downvoteCollectionEntries := [];
+        collectionVolumeEntries := [];
     };
 
 };
