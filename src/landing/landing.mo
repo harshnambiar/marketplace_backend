@@ -15,12 +15,14 @@ actor class Landing(
     private stable var upvoteCollectionEntries : [(Text, [Principal])] = [];
     private stable var downvoteCollectionEntries : [(Text, [Principal])] = [];
     private stable var collectionVolumeEntries : [(Text, Nat)] = [];
+    private stable var collectionAllowableEntries : [(Text,[Text])] = [];
     private let collections : HashMap.HashMap<Text, Principal> = HashMap.fromIter<Text, Principal>(collectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionCanisters : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(collectionCanisterEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionPopularity : HashMap.HashMap<Text, Int> = HashMap.fromIter<Text, Int>(collectionPopularityEntries.vals(), 10, Text.equal, Text.hash);
     private let upvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(upvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
     private let downvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(downvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionVolume : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(collectionVolumeEntries.vals(), 10, Text.equal, Text.hash);
+    private let collectionAllowables : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(collectionAllowableEntries.vals(), 10, Text.equal, Text.hash);
 
     type Order = {#less; #equal; #greater};
 
@@ -79,7 +81,7 @@ actor class Landing(
 
     };
     
-    public shared({caller}) func requestApproval(collName: Text): async Bool{
+    public shared({caller}) func requestApproval(collName: Text, allowed: [Text]): async Bool{
         let creator = collections.get(collName);
         switch creator{
             case null{
@@ -87,7 +89,8 @@ actor class Landing(
                 let status = collectionCanisters.get(collName);
                 switch status{
                     case null{
-                        let res2 = collectionCanisters.put(collName, "pending");
+                        collectionCanisters.put(collName, "pending");
+                        collectionAllowables.put(collName, allowed);
                         return true;
                     };
                     case (?text){
@@ -212,6 +215,23 @@ actor class Landing(
                 else {
                     canisterId := text;
                 };
+            };
+        };
+        let allowedImages = collectionAllowables.get(collName);
+        switch allowedImages{
+            case null{
+                return false;
+            };
+            case (?arr){
+                var newArr = Array.filter(arr, func(val: Text) : Bool {uri != val});
+                if(newArr.size() == arr.size()){
+                    Debug.print(debug_show newArr.size());
+                    return false;
+                }
+                else{
+                    let rs = collectionAllowables.replace(collName, newArr);
+                };
+
             };
         };
         let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text, [(Text,Text)]) -> async (Nat)};
