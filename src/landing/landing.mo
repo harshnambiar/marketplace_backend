@@ -16,6 +16,8 @@ actor class Landing(
     private stable var downvoteCollectionEntries : [(Text, [Principal])] = [];
     private stable var collectionVolumeEntries : [(Text, Nat)] = [];
     private stable var collectionAllowableEntries : [(Text,[Text])] = [];
+    private stable var nestedCollectionEntries : [(Text, Text)] = [];
+    private stable var allowedNestingEntries : [(Text, [(Text, [Text])])] = [];
     private let collections : HashMap.HashMap<Text, Principal> = HashMap.fromIter<Text, Principal>(collectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionCanisters : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(collectionCanisterEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionPopularity : HashMap.HashMap<Text, Int> = HashMap.fromIter<Text, Int>(collectionPopularityEntries.vals(), 10, Text.equal, Text.hash);
@@ -23,6 +25,8 @@ actor class Landing(
     private let downvoteRecords : HashMap.HashMap<Text, [Principal]> = HashMap.fromIter<Text, [Principal]>(downvoteCollectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionVolume : HashMap.HashMap<Text, Nat> = HashMap.fromIter<Text, Nat>(collectionVolumeEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionAllowables : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(collectionAllowableEntries.vals(), 10, Text.equal, Text.hash);
+    private let nestedCollections : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(nestedCollectionEntries.vals(), 10, Text.equal, Text.hash);
+    private let allowedNesting : HashMap.HashMap<Text, [(Text, [Text])]> = HashMap.fromIter<Text, [(Text, [Text])]>(allowedNestingEntries.vals(), 10, Text.equal, Text.hash);
 
     type Order = {#less; #equal; #greater};
 
@@ -99,6 +103,53 @@ actor class Landing(
                 };
             };
             case (?principal){
+                return false;
+            };
+        };
+        return false;
+    };
+
+    public shared({caller}) func requestApprovalForNested(collName: Text, parentName: Text, allowed: [Text], combinations: [(Text,[Text])]): async Bool{
+        let parent = collections.get(parentName);
+        switch parent{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (caller != principal){
+                    return false;
+                };
+            };
+        };
+        let creator = collections.get(collName);
+        switch creator{
+            case null{
+                
+                let status = collectionCanisters.get(collName);
+                switch status{
+                    case null{
+                        let nested = nestedCollections.get(collName);
+                        switch nested{
+                            case null{
+                                allowedNesting.put(collName,combinations);
+                                nestedCollections.put(collName,parentName);
+                                collectionCanisters.put(collName, "pending");
+                                collectionAllowables.put(collName, allowed);
+                                collections.put(collName, caller);
+                                return true;
+                            };
+                            case (?text2){
+                                return false;
+                            };
+                        };
+                        
+                    };
+                    case (?text){
+                        return false;
+                    };
+                };
+            };
+            case (?principal2){
                 return false;
             };
         };
@@ -408,7 +459,11 @@ actor class Landing(
         let res = await act.auctionEnd2(caller,tid);
         
         let res2 = await act1.showBal(caller);
-        var price = res2 - res1;
+        var price2 : Int = res2 - res1;
+        var price : Nat = 0;
+        if (price2 >= 0){
+            price := res2 - res1;
+        };
         Debug.print(debug_show price);
          if (res){
             let currentVol = collectionVolume.get(collName);
@@ -566,6 +621,7 @@ actor class Landing(
         upvoteCollectionEntries := Iter.toArray(upvoteRecords.entries());
         downvoteCollectionEntries := Iter.toArray(downvoteRecords.entries());
         collectionVolumeEntries := Iter.toArray(collectionVolume.entries());
+        nestedCollectionEntries := Iter.toArray(nestedCollections.entries());
     };
 
     system func postupgrade() {
@@ -575,6 +631,7 @@ actor class Landing(
         upvoteCollectionEntries := [];
         downvoteCollectionEntries := [];
         collectionVolumeEntries := [];
+        nestedCollectionEntries := [];
     };
 
 };
