@@ -158,6 +158,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
     private stable var upvoteRecordEntries : [(T.TokenId, [Principal])] = [];
     private stable var downvoteRecordEntries : [(T.TokenId, [Principal])] = [];
     private stable var equippedEntries: [(T.TokenId, T.TokenId)] = [];
+    private stable var occupiedEntries: [(T.TokenId, Bool)] = [];
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
@@ -175,6 +176,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
     private let upvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(upvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
     private let downvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(downvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
     private let equipped: HashMap.HashMap<T.TokenId, T.TokenId> = HashMap.fromIter<T.TokenId, T.TokenId>(equippedEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let occupied: HashMap.HashMap<T.TokenId, Bool> = HashMap.fromIter<T.TokenId, Bool>(occupiedEntries.vals(), 10, Nat.equal,Hash.hash);
 
     type Order = {#less; #equal; #greater};
 
@@ -1094,12 +1096,15 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         switch equipStat{
             case null{
                 equipped.put(tid, tid2);
+                Debug.print(debug_show tid2);
                 return tid2;
             };
             case (?nat){
+                Debug.print(debug_show nat);
                 return 0;
             };
         };
+        Debug.print("HOW");
         return 0;
     };
 
@@ -1110,14 +1115,17 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         let equipStat = equipped.get(tid);
         switch equipStat{
             case null{
+                Debug.print("null");
                 return 0;
             };
             case (?nat){
                 if (nat != tid2){
+                    Debug.print(debug_show nat);
                     return 0;
                 }
                 else{
                     let res = equipped.remove(tid);
+                    Debug.print(debug_show res);
                     return tid2;
                 };
                 
@@ -1279,6 +1287,51 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         return await act.show_time();
     };
 
+    public func setOccupyTrue(tid: T.TokenId): async Bool{
+        let occOpt = occupied.get(tid);
+        switch occOpt{
+            case null{
+                occupied.put(tid, true);
+            };
+            case (?bool){
+                if (bool){
+                    return false;
+                };
+                let res = occupied.replace(tid, not bool);
+            };
+        };
+        return true;
+    };
+
+    public func setOccupyFalse(tid: T.TokenId): async Bool{
+        let occOpt = occupied.get(tid);
+        switch occOpt{
+            case null{
+                occupied.put(tid, false);
+            };
+            case (?bool){
+                if (not bool){
+                    return false;
+                };
+                let res = occupied.replace(tid, not bool);
+            };
+        };
+        return true;
+    };
+
+    public func isOccupyTrue(tid: T.TokenId): async Bool{
+        let occOpt = occupied.get(tid);
+        switch occOpt{
+            case null{
+                return false;
+            };
+            case (?bool){
+                return bool;
+            };
+        };
+        return false;
+    };
+
     system func preupgrade() {
         tokenURIEntries := Iter.toArray(tokenURIs.entries());
         tokenMetadataEntries := Iter.toArray(tokenMetadataHash.entries());
@@ -1296,6 +1349,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         upvoteRecordEntries := Iter.toArray(upvoteRecords.entries());
         downvoteRecordEntries := Iter.toArray(downvoteRecords.entries());
         equippedEntries := Iter.toArray(equipped.entries());
+        occupiedEntries := Iter.toArray(occupied.entries());
     };
 
     system func postupgrade() {
@@ -1315,5 +1369,6 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         upvoteRecordEntries := [];
         downvoteRecordEntries := [];
         equippedEntries := [];
+        occupiedEntries := [];
     };
 };

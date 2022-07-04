@@ -159,147 +159,7 @@ actor class Landing(
         return false;
     };
 
-    public shared({caller}) func equipNested(collName: Text, parentName: Text, tidc: Nat, tidp: Nat): async Bool{
-        let childCollOpt = collections.get(collName);
-        var childCanister = "";
-        switch childCollOpt{
-            case null{
-                
-                return false;
-            };
-            case (?principal){ };
-            
-        };
-        let statusChild = collectionCanisters.get(collName);
-        switch statusChild{
-            case null{
-                
-                return false;
-            };
-            case (?text){
-                if (text == "approved" or text == "pending"){
-                    
-                    return false;
-                }
-                else{
-                    childCanister := text;
-                }
-            };
-        };
-        let parentCollOpt = collections.get(parentName);
-        var parentCanister = "";
-        switch parentCollOpt{
-            case null{
-                
-                return false;
-            };
-            case (?principal){ };
-            
-        };
-        let statusParent = collectionCanisters.get(parentName);
-        switch statusParent{
-            case null{
-                
-                return false;
-            };
-            case (?text){
-                if (text == "approved" or text == "pending"){
-                    
-                    return false;
-                }
-                else {
-                    parentCanister := text;
-                    
-                };
-            };
-        };
-        let actc = actor(childCanister):actor {ownerOf: (Nat) -> async (?Principal)};
-        let ownerC = await actc.ownerOf(tidc);
-        let actp = actor(parentCanister):actor {ownerOf: (Nat) -> async (?Principal)};
-        let ownerP = await actp.ownerOf(tidp);
-        
-        switch ownerC{
-            case null{
-                return false;
-            };
-            case (?principal){
-                if (principal != caller){
-                    return false;
-                }; 
-            };
-        };
-        
-        switch ownerP{
-            case null{
-                return false;
-            };
-            case (?principal){
-                if (principal != caller){
-                    return false;
-                }; 
-            };
-        };
-        
-        let actc2 = actor(childCanister):actor {equip: (Nat, Nat) -> async (Nat)};
-        
-        let eq = await actc2.equip(tidc, tidp);
-        
-        if (eq == 0){
-            return false;
-        }
-        else{
-            let imageOpt = allowedNesting.get(collName);
-            var meta2: [(Text, Text)] = [];
-            var image2 = "";
-            switch imageOpt{
-                case null{
-                    return false;
-                };
-                case (?arr){
-                    let metaOpt = allowedNestedMetadata.get(collName);
-                    switch metaOpt{
-                        case null{
-                            return false;
-                        };
-                        case (?x){
-                        var k = 0;
-                        let actc3 = actor(childCanister):actor {getURI: (Nat) -> async (Text)};
-                        let actp3 = actor(parentCanister):actor {getURI: (Nat) -> async (Text)};
-                        let equip1 = await actc3.getURI(tidc);
-                        let image1 = await actp3.getURI(tidp);
-                        while (k < arr.size()){
-                            if (arr[k].0 == equip1){
-                                var kk = 1;
-                                while (kk < arr[k].1.size()){
-                                    if (image1 == arr[k].1[kk]){
-                                        image2 := arr[k].1[kk-1];
-                                        meta2 := x[k].1[kk-1];
-                                    };
-                                    kk += 1;
-                                };
-                            };
-                            k += 1;
-                        };
-                    };
-                    //architecture of arr: [(Child1 [P1 P1default P2 P2default...]]
-                    }
-                    
-                    
-                    
-                };
-            };
-            if (image2 == "" or meta2.size() == 0){
-                return false;
-            };
-            
-            let actp2 = actor(parentCanister):actor {updateDNFT2: (Principal,Nat,Text,[(Text,Text)]) -> async (Bool)};
-            let dnft = await actp2.updateDNFT2(caller, tidp, image2, meta2);
-            return true;
-        };
-    return false;
-
-
-    };
+   
 
     public shared({caller}) func approveCollection(collName: Text): async Bool{
         if (caller != _owner){
@@ -418,7 +278,7 @@ actor class Landing(
         let allowedImages = collectionAllowables.get(collName);
         switch allowedImages{
             case null{
-                Debug.print(debug_show "hiiii");
+                //Debug.print(debug_show "hiiii");
                 return false;
             };
             case (?arr){
@@ -437,6 +297,314 @@ actor class Landing(
         let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text, [(Text,Text)]) -> async (Nat)};
         let mintedNFT = await act.mintFromParameters2(caller,uri, md);
         return true;
+    };
+
+     public shared({caller}) func equipNested(collName: Text, parentName: Text, tidc: Nat, tidp: Nat): async Bool{
+        let childCollOpt = collections.get(collName);
+        var childCanister = "";
+        switch childCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusChild = collectionCanisters.get(collName);
+        switch statusChild{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else{
+                    childCanister := text;
+                }
+            };
+        };
+        let parentCollOpt = collections.get(parentName);
+        var parentCanister = "";
+        switch parentCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusParent = collectionCanisters.get(parentName);
+        switch statusParent{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else {
+                    parentCanister := text;
+                    
+                };
+            };
+        };
+        let actc = actor(childCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerC = await actc.ownerOf(tidc);
+        let actp = actor(parentCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerP = await actp.ownerOf(tidp);
+        
+        switch ownerC{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        switch ownerP{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        let actc2 = actor(childCanister):actor {equip: (Nat, Nat) -> async (Nat)};
+        
+        let eq = await actc2.equip(tidc, tidp);
+
+        let actp4 = actor(parentCanister):actor {isOccupyTrue: (Nat) -> async (Bool)};
+        
+        let occ = await actp4.isOccupyTrue(tidp);
+        
+        if (eq == 0 or occ){
+            
+            return false;
+        }
+        else{
+            let actp5 = actor(parentCanister):actor {setOccupyTrue: (Nat) -> async (Bool)};
+            
+            let occ2 = await actp5.setOccupyTrue(tidp);
+            if (not occ2){
+                return false;
+            };
+            let imageOpt = allowedNesting.get(collName);
+            var meta2: [(Text, Text)] = [];
+            var image2 = "";
+            switch imageOpt{
+                case null{
+                    return false;
+                };
+                case (?arr){
+                    let metaOpt = allowedNestedMetadata.get(collName);
+                    switch metaOpt{
+                        case null{
+                            return false;
+                        };
+                        case (?x){
+                        var k = 0;
+                        let actc3 = actor(childCanister):actor {getURI: (Nat) -> async (Text)};
+                        let actp3 = actor(parentCanister):actor {getURI: (Nat) -> async (Text)};
+                        let equip1 = await actc3.getURI(tidc);
+                        let image1 = await actp3.getURI(tidp);
+                        while (k < arr.size()){
+                            if (arr[k].0 == equip1){
+                                var kk = 1;
+                                while (kk < arr[k].1.size()){
+                                    if (image1 == arr[k].1[kk]){
+                                        image2 := arr[k].1[kk-1];
+                                        meta2 := x[k].1[kk-1];
+                                    };
+                                    kk += 1;
+                                };
+                            };
+                            k += 1;
+                        };
+                    };
+                    //architecture of arr: [(Child1 [P1 P1default P2 P2default...]]
+                    };
+                    
+                    
+                    
+                };
+            };
+            if (image2 == "" or meta2.size() == 0){
+                return false;
+            };
+            
+            let actp2 = actor(parentCanister):actor {updateDNFT2: (Principal,Nat,Text,[(Text,Text)]) -> async (Bool)};
+            let dnft = await actp2.updateDNFT2(caller, tidp, image2, meta2);
+            return true;
+        };
+    return false;
+
+
+    };
+
+     public shared({caller}) func deequipNested(collName: Text, parentName: Text, tidc: Nat, tidp: Nat): async Bool{
+        let childCollOpt = collections.get(collName);
+        var childCanister = "";
+        switch childCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusChild = collectionCanisters.get(collName);
+        switch statusChild{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else{
+                    childCanister := text;
+                }
+            };
+        };
+        let parentCollOpt = collections.get(parentName);
+        var parentCanister = "";
+        switch parentCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusParent = collectionCanisters.get(parentName);
+        switch statusParent{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else {
+                    parentCanister := text;
+                    
+                };
+            };
+        };
+        let actc = actor(childCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerC = await actc.ownerOf(tidc);
+        let actp = actor(parentCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerP = await actp.ownerOf(tidp);
+        
+        switch ownerC{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        switch ownerP{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        let actc2 = actor(childCanister):actor {dequip: (Nat, Nat) -> async (Nat)};
+        
+        let eq = await actc2.dequip(tidc, tidp);
+
+        let actp4 = actor(parentCanister):actor {isOccupyTrue: (Nat) -> async (Bool)};
+        
+        let occ = await actp4.isOccupyTrue(tidp);
+        
+        if (eq == 0 or not occ){
+            Debug.print("mri");
+            Debug.print(debug_show eq);
+            Debug.print(debug_show occ);
+            return false;
+        }
+        else{
+            let actp5 = actor(parentCanister):actor {setOccupyFalse: (Nat) -> async (Bool)};
+            
+            let occ2 = await actp5.setOccupyFalse(tidp);
+            if (not occ2){
+                return false;
+            };
+            let imageOpt = allowedNesting.get(collName);
+            var meta2: [(Text, Text)] = [];
+            var image2 = "";
+            switch imageOpt{
+                case null{
+                    return false;
+                };
+                case (?arr){
+                    let metaOpt = allowedNestedMetadata.get(collName);
+                    switch metaOpt{
+                        case null{
+                            return false;
+                        };
+                        case (?x){
+                        var k = 0;
+                        let actc3 = actor(childCanister):actor {getURI: (Nat) -> async (Text)};
+                        let actp3 = actor(parentCanister):actor {getURI: (Nat) -> async (Text)};
+                        let equip1 = await actc3.getURI(tidc);
+                        let image1 = await actp3.getURI(tidp);
+                        while (k < arr.size()){
+                            if (arr[k].0 == equip1){
+                                var kk = 0;
+                                while (kk + 1 < arr[k].1.size()){
+                                    if (image1 == arr[k].1[kk]){
+                                        image2 := arr[k].1[kk+1];
+                                        meta2 := x[k].1[kk+1];
+                                    };
+                                    kk += 1;
+                                };
+                            };
+                            k += 1;
+                        };
+                    };
+                    //architecture of arr: [(Child1 [P1 P1default P2 P2default...]]
+                    };
+                    
+                    
+                    
+                };
+            };
+            if (image2 == "" or meta2.size() == 0){
+                return false;
+            };
+            
+            let actp2 = actor(parentCanister):actor {updateDNFT2: (Principal,Nat,Text,[(Text,Text)]) -> async (Bool)};
+            let dnft = await actp2.updateDNFT2(caller, tidp, image2, meta2);
+            return true;
+        };
+    return false;
+
+
     };
 
     public shared({caller}) func upvoteNFT(collName: Text, tid: Nat) : async Bool{
