@@ -18,6 +18,7 @@ actor class Landing(
     private stable var collectionAllowableEntries : [(Text,[Text])] = [];
     private stable var nestedCollectionEntries : [(Text, Text)] = [];
     private stable var allowedNestingEntries : [(Text, [(Text, [Text])])] = [];
+    private stable var allowedNestedMetadataEntries : [(Text, [(Text, [[(Text, Text)]])])] = [];
     private let collections : HashMap.HashMap<Text, Principal> = HashMap.fromIter<Text, Principal>(collectionEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionCanisters : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(collectionCanisterEntries.vals(), 10, Text.equal, Text.hash);
     private let collectionPopularity : HashMap.HashMap<Text, Int> = HashMap.fromIter<Text, Int>(collectionPopularityEntries.vals(), 10, Text.equal, Text.hash);
@@ -27,6 +28,7 @@ actor class Landing(
     private let collectionAllowables : HashMap.HashMap<Text, [Text]> = HashMap.fromIter<Text, [Text]>(collectionAllowableEntries.vals(), 10, Text.equal, Text.hash);
     private let nestedCollections : HashMap.HashMap<Text, Text> = HashMap.fromIter<Text, Text>(nestedCollectionEntries.vals(), 10, Text.equal, Text.hash);
     private let allowedNesting : HashMap.HashMap<Text, [(Text, [Text])]> = HashMap.fromIter<Text, [(Text, [Text])]>(allowedNestingEntries.vals(), 10, Text.equal, Text.hash);
+    private let allowedNestedMetadata : HashMap.HashMap<Text, [(Text, [[(Text,Text)]])]> = HashMap.fromIter<Text, [(Text, [[(Text, Text)]])]>(allowedNestedMetadataEntries.vals(), 10, Text.equal, Text.hash);
 
     type Order = {#less; #equal; #greater};
 
@@ -109,7 +111,7 @@ actor class Landing(
         return false;
     };
 
-    public shared({caller}) func requestApprovalForNested(collName: Text, parentName: Text, allowed: [Text], combinations: [(Text,[Text])]): async Bool{
+    public shared({caller}) func requestApprovalForNested(collName: Text, parentName: Text, allowed: [Text], combinations: [(Text,[Text])], metaCombinations: [(Text,[[(Text,Text)]])]): async Bool{
         let parent = collections.get(parentName);
         switch parent{
             case null{
@@ -132,6 +134,7 @@ actor class Landing(
                         switch nested{
                             case null{
                                 allowedNesting.put(collName,combinations);
+                                allowedNestedMetadata.put(collName, metaCombinations);
                                 nestedCollections.put(collName,parentName);
                                 collectionCanisters.put(collName, "pending");
                                 collectionAllowables.put(collName, allowed);
@@ -154,6 +157,148 @@ actor class Landing(
             };
         };
         return false;
+    };
+
+    public shared({caller}) func equipNested(collName: Text, parentName: Text, tidc: Nat, tidp: Nat): async Bool{
+        let childCollOpt = collections.get(collName);
+        var childCanister = "";
+        switch childCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusChild = collectionCanisters.get(collName);
+        switch statusChild{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else{
+                    childCanister := text;
+                }
+            };
+        };
+        let parentCollOpt = collections.get(parentName);
+        var parentCanister = "";
+        switch parentCollOpt{
+            case null{
+                
+                return false;
+            };
+            case (?principal){ };
+            
+        };
+        let statusParent = collectionCanisters.get(parentName);
+        switch statusParent{
+            case null{
+                
+                return false;
+            };
+            case (?text){
+                if (text == "approved" or text == "pending"){
+                    
+                    return false;
+                }
+                else {
+                    parentCanister := text;
+                    
+                };
+            };
+        };
+        let actc = actor(childCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerC = await actc.ownerOf(tidc);
+        let actp = actor(parentCanister):actor {ownerOf: (Nat) -> async (?Principal)};
+        let ownerP = await actp.ownerOf(tidp);
+        
+        switch ownerC{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        switch ownerP{
+            case null{
+                return false;
+            };
+            case (?principal){
+                if (principal != caller){
+                    return false;
+                }; 
+            };
+        };
+        
+        let actc2 = actor(childCanister):actor {equip: (Nat, Nat) -> async (Nat)};
+        
+        let eq = await actc2.equip(tidc, tidp);
+        
+        if (eq == 0){
+            return false;
+        }
+        else{
+            let imageOpt = allowedNesting.get(collName);
+            var meta2: [(Text, Text)] = [];
+            var image2 = "";
+            switch imageOpt{
+                case null{
+                    return false;
+                };
+                case (?arr){
+                    let metaOpt = allowedNestedMetadata.get(collName);
+                    switch metaOpt{
+                        case null{
+                            return false;
+                        };
+                        case (?x){
+                        var k = 0;
+                        let actc3 = actor(childCanister):actor {getURI: (Nat) -> async (Text)};
+                        let actp3 = actor(parentCanister):actor {getURI: (Nat) -> async (Text)};
+                        let equip1 = await actc3.getURI(tidc);
+                        let image1 = await actp3.getURI(tidp);
+                        while (k < arr.size()){
+                            if (arr[k].0 == equip1){
+                                var kk = 1;
+                                while (kk < arr[k].1.size()){
+                                    if (image1 == arr[k].1[kk]){
+                                        image2 := arr[k].1[kk-1];
+                                        meta2 := x[k].1[kk-1];
+                                    };
+                                    kk += 1;
+                                };
+                            };
+                            k += 1;
+                        };
+                    };
+                    //architecture of arr: [(Child1 [P1 P1default P2 P2default...]]
+                    }
+                    
+                    
+                    
+                };
+            };
+            if (image2 == "" or meta2.size() == 0){
+                return false;
+            };
+            
+            let actp2 = actor(parentCanister):actor {updateDNFT2: (Principal,Nat,Text,[(Text,Text)]) -> async (Bool)};
+            let dnft = await actp2.updateDNFT2(caller, tidp, image2, meta2);
+            return true;
+        };
+    return false;
+
+
     };
 
     public shared({caller}) func approveCollection(collName: Text): async Bool{
@@ -257,10 +402,12 @@ actor class Landing(
         var canisterId = "";
         switch status{
             case null{
+                
                 return false;
             };
             case (?text){
                 if (text == "pending" or text == "approved"){
+                    
                     return false;
                 }
                 else {
@@ -271,6 +418,7 @@ actor class Landing(
         let allowedImages = collectionAllowables.get(collName);
         switch allowedImages{
             case null{
+                Debug.print(debug_show "hiiii");
                 return false;
             };
             case (?arr){
@@ -285,6 +433,7 @@ actor class Landing(
 
             };
         };
+        
         let act = actor(canisterId):actor {mintFromParameters2: (Principal, Text, [(Text,Text)]) -> async (Nat)};
         let mintedNFT = await act.mintFromParameters2(caller,uri, md);
         return true;
@@ -622,6 +771,9 @@ actor class Landing(
         downvoteCollectionEntries := Iter.toArray(downvoteRecords.entries());
         collectionVolumeEntries := Iter.toArray(collectionVolume.entries());
         nestedCollectionEntries := Iter.toArray(nestedCollections.entries());
+        allowedNestedMetadataEntries := Iter.toArray(allowedNestedMetadata.entries());
+        allowedNestingEntries := Iter.toArray(allowedNesting.entries());
+        collectionAllowableEntries := Iter.toArray(collectionAllowables.entries());
     };
 
     system func postupgrade() {
@@ -632,6 +784,9 @@ actor class Landing(
         downvoteCollectionEntries := [];
         collectionVolumeEntries := [];
         nestedCollectionEntries := [];
+        allowedNestedMetadataEntries := [];
+        allowedNestingEntries := [];
+        collectionAllowableEntries := [];
     };
 
 };

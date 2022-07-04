@@ -157,6 +157,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
     private stable var nftDownvoteEntries : [(T.TokenId, Nat)] = [];
     private stable var upvoteRecordEntries : [(T.TokenId, [Principal])] = [];
     private stable var downvoteRecordEntries : [(T.TokenId, [Principal])] = [];
+    private stable var equippedEntries: [(T.TokenId, T.TokenId)] = [];
 
     private let tokenURIs : HashMap.HashMap<T.TokenId, Text> = HashMap.fromIter<T.TokenId, Text>(tokenURIEntries.vals(), 10, Nat.equal, Hash.hash);
     private let tokenMetadataHash : HashMap.HashMap<Text, TokenMetadata> = HashMap.fromIter<Text, TokenMetadata>(tokenMetadataEntries.vals(), 10, Text.equal, Text.hash);
@@ -173,6 +174,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
     private let nftDownvotes: HashMap.HashMap<T.TokenId, Nat> = HashMap.fromIter<T.TokenId, Nat>(nftDownvoteEntries.vals(), 10, Nat.equal, Hash.hash);
     private let upvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(upvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
     private let downvoteRecords : HashMap.HashMap<T.TokenId, [Principal]> = HashMap.fromIter<T.TokenId, [Principal]>(downvoteRecordEntries.vals(), 10, Nat.equal, Hash.hash);
+    private let equipped: HashMap.HashMap<T.TokenId, T.TokenId> = HashMap.fromIter<T.TokenId, T.TokenId>(equippedEntries.vals(), 10, Nat.equal, Hash.hash);
 
     type Order = {#less; #equal; #greater};
 
@@ -309,6 +311,19 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
             };
         };
         
+    };
+
+    public func getURI(tid: T.TokenId): async Text{
+        let uriOpt = tokenURIs.get(tid);
+        switch uriOpt{
+            case null{
+                return "";
+            };
+            case (?text){
+                return text;
+            };
+        };
+        return "";
     };
 
     public func showAllPropertyFrequency(): async [(Text, Nat)]{
@@ -1060,6 +1075,57 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         };
     };
 
+    public shared ({caller}) func updateDNFT2(p: Principal, tokenId: T.TokenId, uri: Text, md: [(Text,Text)]): async Bool{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return false;
+        };
+        let newUri = tokenURIs.replace(tokenId, uri);
+        let meta = toTokenMetadata(tokenId, p, md);
+        let newMeta = tokenMetadataHash.replace(uri,meta);
+        return true;
+        
+    };
+
+    public shared ({caller}) func equip(tid: T.TokenId, tid2: T.TokenId): async T.TokenId{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return 0;
+        };
+        let equipStat = equipped.get(tid);
+        switch equipStat{
+            case null{
+                equipped.put(tid, tid2);
+                return tid2;
+            };
+            case (?nat){
+                return 0;
+            };
+        };
+        return 0;
+    };
+
+    public shared ({caller}) func dequip(tid: T.TokenId, tid2: T.TokenId): async T.TokenId{
+        if (caller != Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")){
+            return 0;
+        };
+        let equipStat = equipped.get(tid);
+        switch equipStat{
+            case null{
+                return 0;
+            };
+            case (?nat){
+                if (nat != tid2){
+                    return 0;
+                }
+                else{
+                    let res = equipped.remove(tid);
+                    return tid2;
+                };
+                
+            };
+        };
+        return 0;
+    };
+
     // Internal
 
     private func _ownerOf(tokenId : T.TokenId) : ?Principal {
@@ -1229,6 +1295,7 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         nftUpvoteEntries := Iter.toArray(nftUpvotes.entries());
         upvoteRecordEntries := Iter.toArray(upvoteRecords.entries());
         downvoteRecordEntries := Iter.toArray(downvoteRecords.entries());
+        equippedEntries := Iter.toArray(equipped.entries());
     };
 
     system func postupgrade() {
@@ -1247,5 +1314,6 @@ actor class DRC721(_name : Text, _symbol : Text, _tags: [Text], _publisher : Pri
         nftUpvoteEntries := [];
         upvoteRecordEntries := [];
         downvoteRecordEntries := [];
+        equippedEntries := [];
     };
 };
